@@ -4,6 +4,9 @@ import type {
   MetaFunction,
 } from "partymix";
 import WhosHere from "../components/whos-here";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Collaboration, ydoc } from "~/utils/collaboration.client";
 
 declare const PARTYKIT_HOST: string;
 
@@ -26,6 +29,18 @@ export const loader: LoaderFunction = async function ({
 };
 
 export default function Index() {
+  let editor;
+  if (typeof document !== "undefined") {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    editor = useEditor({
+      extensions: [
+        StarterKit.configure({ history: false }),
+        Collaboration.configure({
+          document: ydoc,
+        }),
+      ],
+    });
+  }
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: "1.8" }}>
       <h1>🎈 PartyKit ⤫ Remix 💿 </h1>
@@ -56,6 +71,9 @@ export default function Index() {
       </ul>
 
       <WhosHere />
+      <div style={{ border: "1px solid" }}>
+        {editor && <EditorContent editor={editor} />}
+      </div>
     </div>
   );
 }

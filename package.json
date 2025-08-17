@@ -14,11 +14,17 @@
   "dependencies": {
     "@remix-run/css-bundle": "^2.11.2",
     "@remix-run/react": "^2.11.2",
+    "@tiptap/react": "^2.2.4",
+    "@tiptap/starter-kit": "^2.2.4",
+    "@tiptap/extension-collaboration": "^2.2.4",
     "isbot": "^5.1.17",
     "partymix": "^0.0.16",
     "partysocket": "1.0.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "y-partykit": "^0.0.27",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.14"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.11.2",

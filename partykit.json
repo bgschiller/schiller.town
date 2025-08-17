@@ -6,7 +6,8 @@
   "compatibilityDate": "2023-12-22",
   "parties": {
     // we also have a sub party that we use just for geo presence
-    "geo": "party/geo.ts"
+    "geo": "party/geo.ts",
+    "yjs": "party/yjs.ts"
   },
   "serve": "public"
 }
