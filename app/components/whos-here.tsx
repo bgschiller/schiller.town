@@ -20,18 +20,14 @@ export default function WhosHere() {
   });
 
   return !users ? (
-    "Connecting..."
+    <>
+      <span className="online-dot" style={{ opacity: 0.5 }}></span>
+      Connecting...
+    </>
   ) : (
-    <div className="presence">
-      <b>Who's here?</b>
-      <br />
-      {users?.total} user{users?.total !== 1 ? "s" : ""} online. (
-      {Object.entries(users?.from || {})
-        .map(([from, count]) => {
-          return `${count} from ${countryCodeEmoji(from)}`;
-        })
-        .join(", ")}
-      )
-    </div>
+    <>
+      <span className="online-dot"></span>
+      {users?.total} online
+    </>
   );
 }
