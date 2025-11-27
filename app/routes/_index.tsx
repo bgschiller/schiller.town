@@ -3,6 +3,7 @@ import type {
   LoaderFunctionArgs,
   MetaFunction,
 } from "partymix";
+import { useLoaderData, Form } from "@remix-run/react";
 import WhosHere from "../components/whos-here";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -11,6 +12,7 @@ import Text from "@tiptap/extension-text";
 import Paragraph from "@tiptap/extension-paragraph";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Collaboration, ydoc } from "~/utils/collaboration.client";
+import { requireAuth } from "~/utils/session.server";
 
 declare const PARTYKIT_HOST: string;
 
@@ -23,11 +25,14 @@ export const meta: MetaFunction = () => {
 
 export const loader: LoaderFunction = async function ({
   context,
+  request,
 }: LoaderFunctionArgs) {
-  return Response.json({ partykitHost: PARTYKIT_HOST });
+  const userName = await requireAuth(request, "/");
+  return Response.json({ partykitHost: PARTYKIT_HOST, userName });
 };
 
 export default function Index() {
+  const { userName } = useLoaderData<typeof loader>();
   let titleEditor;
   let contentEditor;
 
@@ -95,7 +100,29 @@ export default function Index() {
           border-radius: 2rem;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
+        }
+
+        .presence-divider {
+          width: 1px;
+          height: 1rem;
+          background: #d1d5db;
+        }
+
+        .logout-button {
+          background: none;
+          border: none;
+          color: #dc2626;
+          cursor: pointer;
+          font-size: 0.875rem;
+          padding: 0;
+          font-weight: 500;
+          text-decoration: underline;
+          font-family: inherit;
+        }
+
+        .logout-button:hover {
+          color: #991b1b;
         }
 
         .presence-indicator b {
@@ -255,7 +282,15 @@ export default function Index() {
 
       <div className="container">
         <div className="presence-indicator">
+          <span>👋 {userName}</span>
+          <div className="presence-divider"></div>
           <WhosHere />
+          <div className="presence-divider"></div>
+          <Form method="post" action="/logout" style={{ display: 'inline' }}>
+            <button type="submit" className="logout-button">
+              Logout
+            </button>
+          </Form>
         </div>
 
         <div className="title-editor">

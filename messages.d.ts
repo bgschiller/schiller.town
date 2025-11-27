@@ -4,4 +4,5 @@
 export type State = {
   total: number;
   from: Record<string, number>;
+  users: Array<{ name: string; country: string }>;
 };
