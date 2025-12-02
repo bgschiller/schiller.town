@@ -55,13 +55,6 @@ export default function WhosHere() {
     >
       <span className="online-dot"></span>
       {users.total} online
-      {users.users && users.users.length > 0 && (
-        <span style={{ display: "flex", gap: "0.25rem" }}>
-          {users.users.map((user, i) => (
-            <span key={i}>{countryCodeEmoji(user.country)}</span>
-          ))}
-        </span>
-      )}
     </span>
   );
 }
