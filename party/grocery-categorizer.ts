@@ -118,7 +118,6 @@ const DEPARTMENTS: Department[] = [
       "corn",
       "asparagus",
       "green bean",
-      "beans",
       "peas",
       "snap peas",
       "snow peas",
@@ -658,16 +657,6 @@ const DEPARTMENTS: Department[] = [
       "hunts",
       "hunt's",
 
-      "black beans",
-      "kidney beans",
-      "pinto beans",
-      "chickpeas",
-      "garbanzo beans",
-      "navy beans",
-      "cannellini beans",
-      "baked beans",
-      "refried beans",
-
       "soup",
       "broth",
       "stock",
@@ -933,6 +922,15 @@ const DEPARTMENTS: Department[] = [
       "orbit",
       "juicy fruit",
       "doublemint",
+
+      // beans
+      "black beans",
+      "kidney beans",
+      "pinto beans",
+      "chickpeas",
+      "garbanzo beans",
+      "navy beans",
+      "cannellini beans",
     ],
   },
   {

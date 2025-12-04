@@ -16,6 +16,7 @@ import {
   getYDoc,
   getProvider,
 } from "~/utils/collaboration.client";
+import { MergeAdjacentLists } from "~/utils/merge-adjacent-lists";
 import { requireAuth } from "~/utils/session.server";
 import { useEffect, useRef, useState } from "react";
 
@@ -149,6 +150,7 @@ export default function DocPage() {
                 document: ydoc,
                 field: `${documentId}-content`,
               }),
+              MergeAdjacentLists,
             ]
           : [StarterKit],
       editorProps: {
