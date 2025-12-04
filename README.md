@@ -1,15 +1,20 @@
 # Welcome to 🎈 PartyKit ⤫ Remix 💿!
 
-This is a starter template for [Remix](https://remix.run) and [PartyKit](https://partykit.io). You can create a new project based on this template with the Remix CLI:
+This is a collaborative document editor built with [Remix](https://remix.run) and [PartyKit](https://partykit.io).
 
-```sh
-npx create-remix@latest --template partykit/remix-starter
-```
+## Features
+
+- 📝 Real-time collaborative editing with TipTap
+- 👥 See who's currently viewing each document
+- 🗂️ AI-powered grocery list organization by department (using Anthropic Claude)
+- 📦 Archive and restore documents
+
+## AI Grocery Sorting
+
+This app includes an AI-powered feature to organize grocery lists by department. See [GROCERY_SORTING.md](./GROCERY_SORTING.md) for setup instructions.
 
 - [Remix Docs](https://remix.run/docs)
 - [PartyKit Docs](https://docs.partykit.io/)
-
-_NB: This is a **beta** release, so expect some rough edges. Please file issues or feedback at https://github.com/partykit/remix-starter!_
 
 ## Development
 

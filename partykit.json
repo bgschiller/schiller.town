@@ -10,5 +10,8 @@
     "yjs": "party/yjs.ts",
     "documents": "party/documents.ts"
   },
-  "serve": "public"
+  "serve": "public",
+  "vars": {
+    "ANTHROPIC_API_KEY": ""
+  }
 }

@@ -1,4 +1,5 @@
 import type * as Party from "partykit/server";
+import { organizeGroceriesByDepartment } from "./grocery-categorizer";
 
 export type Document = {
   id: string; // Stable identifier for the document
@@ -249,53 +250,15 @@ export default class DocumentsServer implements Party.Server {
         });
       }
 
-      // Stub implementation: group by word count
-      // This will be replaced with LLM-based grocery department grouping
-      const organized = this.organizeListItems(body.items);
+      // Use the grocery categorizer - it will automatically choose between
+      // AI and keyword-based categorization depending on API key availability
+      const apiKey = this.party.env.ANTHROPIC_API_KEY as string | undefined;
+      const organized = await organizeGroceriesByDepartment(body.items, apiKey);
 
       return Response.json({ organized });
     }
 
     return new Response("Not found", { status: 404 });
-  }
-
-  private organizeListItems(items: string[]): string[] {
-    // Stub: Group items by word count
-    // In the future, this will call an LLM to organize groceries by department
-
-    // Filter out empty items
-    const validItems = items.filter((item) => item.trim().length > 0);
-
-    if (validItems.length === 0) {
-      return [];
-    }
-
-    // Group items by word count
-    const grouped = new Map<number, string[]>();
-
-    validItems.forEach((item) => {
-      const trimmed = item.trim();
-      const wordCount = trimmed.split(/\s+/).length;
-      if (!grouped.has(wordCount)) {
-        grouped.set(wordCount, []);
-      }
-      grouped.get(wordCount)!.push(trimmed);
-    });
-
-    // Sort groups by word count and flatten
-    const sortedGroups = Array.from(grouped.entries()).sort(
-      ([a], [b]) => a - b
-    );
-
-    const result: string[] = [];
-    sortedGroups.forEach(([wordCount, groupItems]) => {
-      // Add a header for each group
-      result.push(`[${wordCount} word${wordCount !== 1 ? "s" : ""}]`);
-      // Add the items in this group
-      result.push(...groupItems);
-    });
-
-    return result;
   }
 
   private async getAllDocuments(

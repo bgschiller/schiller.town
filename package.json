@@ -12,6 +12,7 @@
     "deploy": "npm run build && partykit deploy"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@remix-run/css-bundle": "^2.11.2",
     "@remix-run/react": "^2.11.2",
     "@tiptap/extension-bubble-menu": "^3.12.1",

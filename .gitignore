@@ -3,9 +3,5 @@
 .DS_Store
 build
 public/build
-.partykit
-.DS_Store
-build
-public/build
-.partykit
-.DS_Store
+.env
+.env.local

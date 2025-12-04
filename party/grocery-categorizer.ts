@@ -1,0 +1,1347 @@
+/**
+ * Grocery item categorization system
+ * Categorizes grocery items by department using either:
+ * 1. Anthropic Claude AI (if API key provided)
+ * 2. Keyword matching against common grocery items (fallback)
+ */
+
+import Anthropic from "@anthropic-ai/sdk";
+
+type Department = {
+  name: string;
+  keywords: string[];
+};
+
+// Comprehensive list of grocery departments with common items
+// Organized by typical grocery store layout
+const DEPARTMENTS: Department[] = [
+  {
+    name: "Produce",
+    keywords: [
+      // Fruits
+      "apple",
+      "apples",
+      "banana",
+      "bananas",
+      "orange",
+      "oranges",
+      "grape",
+      "grapes",
+      "strawberry",
+      "strawberries",
+      "blueberry",
+      "blueberries",
+      "raspberry",
+      "raspberries",
+      "blackberry",
+      "blackberries",
+      "watermelon",
+      "cantaloupe",
+      "honeydew",
+      "melon",
+      "pineapple",
+      "mango",
+      "mangoes",
+      "papaya",
+      "kiwi",
+      "kiwis",
+      "peach",
+      "peaches",
+      "pear",
+      "pears",
+      "plum",
+      "plums",
+      "cherry",
+      "cherries",
+      "apricot",
+      "apricots",
+      "nectarine",
+      "nectarines",
+      "tangerine",
+      "tangerines",
+      "clementine",
+      "clementines",
+      "grapefruit",
+      "lime",
+      "limes",
+      "lemon",
+      "lemons",
+      "avocado",
+      "avocados",
+      "tomato",
+      "tomatoes",
+      "coconut",
+      "fig",
+      "figs",
+      "date",
+      "dates",
+      "pomegranate",
+      "dragonfruit",
+      "persimmon",
+      "starfruit",
+      "guava",
+      "lychee",
+      "passionfruit",
+
+      // Vegetables
+      "lettuce",
+      "spinach",
+      "kale",
+      "arugula",
+      "cabbage",
+      "broccoli",
+      "cauliflower",
+      "carrot",
+      "carrots",
+      "celery",
+      "cucumber",
+      "cucumbers",
+      "pepper",
+      "peppers",
+      "bell pepper",
+      "jalapeno",
+      "jalapenos",
+      "onion",
+      "onions",
+      "garlic",
+      "ginger",
+      "potato",
+      "potatoes",
+      "sweet potato",
+      "yam",
+      "yams",
+      "squash",
+      "zucchini",
+      "eggplant",
+      "mushroom",
+      "mushrooms",
+      "corn",
+      "asparagus",
+      "green bean",
+      "beans",
+      "peas",
+      "snap peas",
+      "snow peas",
+      "radish",
+      "radishes",
+      "turnip",
+      "beet",
+      "beets",
+      "parsnip",
+      "rutabaga",
+      "leek",
+      "leeks",
+      "shallot",
+      "shallots",
+      "scallion",
+      "green onion",
+      "chard",
+      "collard",
+      "brussels sprout",
+      "artichoke",
+      "fennel",
+      "bok choy",
+      "napa cabbage",
+      "watercress",
+      "endive",
+      "radicchio",
+      "herbs",
+      "cilantro",
+      "parsley",
+      "basil",
+      "mint",
+      "thyme",
+      "rosemary",
+      "oregano",
+      "dill",
+      "chive",
+      "chives",
+      "sage",
+      "tarragon",
+      "salad",
+      "greens",
+      "mixed greens",
+    ],
+  },
+  {
+    name: "Meat & Seafood",
+    keywords: [
+      // Poultry
+      "chicken",
+      "turkey",
+      "duck",
+      "cornish hen",
+      "quail",
+      "chicken breast",
+      "chicken thigh",
+      "chicken wing",
+      "drumstick",
+      "ground chicken",
+      "ground turkey",
+
+      // Beef
+      "beef",
+      "steak",
+      "ribeye",
+      "sirloin",
+      "t-bone",
+      "porterhouse",
+      "filet mignon",
+      "chuck",
+      "brisket",
+      "short rib",
+      "ground beef",
+      "hamburger",
+      "roast beef",
+      "beef roast",
+      "flank steak",
+      "skirt steak",
+      "tenderloin",
+      "prime rib",
+
+      // Pork
+      "pork",
+      "bacon",
+      "ham",
+      "pork chop",
+      "pork loin",
+      "pork shoulder",
+      "ribs",
+      "pork belly",
+      "sausage",
+      "bratwurst",
+      "chorizo",
+      "italian sausage",
+      "hot dog",
+      "prosciutto",
+      "salami",
+      "pepperoni",
+      "ground pork",
+
+      // Lamb & Other
+      "lamb",
+      "lamb chop",
+      "leg of lamb",
+      "veal",
+      "venison",
+      "bison",
+      "goat",
+
+      // Seafood
+      "fish",
+      "salmon",
+      "tuna",
+      "cod",
+      "halibut",
+      "tilapia",
+      "trout",
+      "catfish",
+      "mahi mahi",
+      "swordfish",
+      "sea bass",
+      "snapper",
+      "flounder",
+      "sole",
+      "haddock",
+      "sardine",
+      "sardines",
+      "anchovy",
+      "anchovies",
+      "mackerel",
+      "herring",
+      "shrimp",
+      "prawns",
+      "crab",
+      "lobster",
+      "scallop",
+      "scallops",
+      "clam",
+      "clams",
+      "mussel",
+      "mussels",
+      "oyster",
+      "oysters",
+      "squid",
+      "calamari",
+      "octopus",
+      "crayfish",
+      "crawfish",
+    ],
+  },
+  {
+    name: "Dairy & Eggs",
+    keywords: [
+      "milk",
+      "whole milk",
+      "skim milk",
+      "2% milk",
+      "1% milk",
+      "chocolate milk",
+      "almond milk",
+      "soy milk",
+      "oat milk",
+      "coconut milk",
+      "cashew milk",
+      "lactose free milk",
+      "cream",
+      "heavy cream",
+      "whipping cream",
+      "half and half",
+      "sour cream",
+      "buttermilk",
+      "eggnog",
+
+      "cheese",
+      "cheddar",
+      "mozzarella",
+      "swiss",
+      "provolone",
+      "pepper jack",
+      "monterey jack",
+      "colby",
+      "american cheese",
+      "parmesan",
+      "romano",
+      "asiago",
+      "gouda",
+      "brie",
+      "camembert",
+      "feta",
+      "goat cheese",
+      "blue cheese",
+      "gorgonzola",
+      "muenster",
+      "havarti",
+      "gruyere",
+      "manchego",
+      "ricotta",
+      "cottage cheese",
+      "cream cheese",
+      "mascarpone",
+      "string cheese",
+      "cheese stick",
+      "shredded cheese",
+
+      "yogurt",
+      "greek yogurt",
+      "yoghurt",
+      "kefir",
+      "sour cream",
+
+      "butter",
+      "margarine",
+      "ghee",
+      "butterspread",
+
+      "egg",
+      "eggs",
+      "egg whites",
+      "egg substitute",
+    ],
+  },
+  {
+    name: "Bakery",
+    keywords: [
+      "bread",
+      "white bread",
+      "wheat bread",
+      "whole wheat",
+      "whole grain",
+      "multigrain",
+      "sourdough",
+      "rye bread",
+      "pumpernickel",
+      "ciabatta",
+      "focaccia",
+      "baguette",
+      "roll",
+      "rolls",
+      "dinner roll",
+      "kaiser roll",
+      "bagel",
+      "bagels",
+      "english muffin",
+      "pita",
+      "pita bread",
+      "naan",
+      "tortilla",
+      "flour tortilla",
+      "corn tortilla",
+      "wrap",
+      "wraps",
+      "flatbread",
+      "croissant",
+      "croissants",
+
+      "muffin",
+      "muffins",
+      "donut",
+      "donuts",
+      "doughnut",
+      "danish",
+      "pastry",
+      "pastries",
+      "cake",
+      "cupcake",
+      "cupcakes",
+      "brownie",
+      "brownies",
+      "cookie",
+      "cookies",
+      "pie",
+      "tart",
+      "scone",
+      "scones",
+      "biscuit",
+      "biscuits",
+      "cinnamon roll",
+      "coffee cake",
+      "pound cake",
+      "cheesecake",
+      "strudel",
+    ],
+  },
+  {
+    name: "Frozen Foods",
+    keywords: [
+      "frozen",
+      "ice cream",
+      "gelato",
+      "sorbet",
+      "frozen yogurt",
+      "popsicle",
+      "popsicles",
+      "ice cream sandwich",
+      "ice cream bar",
+      "frozen fruit",
+      "frozen vegetables",
+      "frozen veggies",
+      "frozen berries",
+      "frozen peas",
+      "frozen corn",
+      "frozen broccoli",
+
+      "frozen pizza",
+      "frozen dinner",
+      "tv dinner",
+      "frozen meal",
+      "frozen entree",
+      "frozen chicken",
+      "frozen fish",
+      "frozen shrimp",
+      "fish sticks",
+      "chicken nugget",
+      "chicken nuggets",
+      "chicken tender",
+      "tater tots",
+      "french fries",
+      "fries",
+      "frozen fries",
+      "onion rings",
+      "mozzarella sticks",
+      "frozen appetizer",
+
+      "frozen waffle",
+      "waffles",
+      "frozen pancake",
+      "pancakes",
+      "frozen breakfast",
+      "breakfast burrito",
+      "hot pocket",
+      "frozen burrito",
+      "frozen lasagna",
+      "frozen pot pie",
+      "frozen stir fry",
+      "frozen pasta",
+      "frozen ravioli",
+    ],
+  },
+  {
+    name: "Beverages",
+    keywords: [
+      // Put specific multi-word phrases first for better matching
+      "orange juice",
+      "apple juice",
+      "grape juice",
+      "cranberry juice",
+      "pineapple juice",
+      "grapefruit juice",
+      "tomato juice",
+      "vegetable juice",
+      "lemon juice",
+      "lime juice",
+      "fruit juice",
+
+      "water",
+      "bottled water",
+      "sparkling water",
+      "seltzer",
+      "soda",
+      "pop",
+      "cola",
+      "coca cola",
+      "pepsi",
+      "sprite",
+      "mountain dew",
+      "dr pepper",
+      "ginger ale",
+      "root beer",
+      "lemonade",
+      "fruit punch",
+      "sports drink",
+      "gatorade",
+      "powerade",
+      "energy drink",
+      "red bull",
+      "monster",
+
+      "juice",
+
+      "coffee",
+      "ground coffee",
+      "coffee beans",
+      "instant coffee",
+      "espresso",
+      "tea",
+      "black tea",
+      "green tea",
+      "herbal tea",
+      "chai",
+      "iced tea",
+
+      "wine",
+      "red wine",
+      "white wine",
+      "rose",
+      "champagne",
+      "beer",
+      "ale",
+      "lager",
+      "ipa",
+      "stout",
+      "cider",
+      "hard cider",
+      "liquor",
+      "spirits",
+      "vodka",
+      "whiskey",
+      "rum",
+      "gin",
+      "tequila",
+      "bourbon",
+      "scotch",
+
+      "smoothie",
+      "protein shake",
+      "milkshake",
+      "hot chocolate",
+      "cocoa",
+    ],
+  },
+  {
+    name: "Canned & Jarred Goods",
+    keywords: [
+      // Multi-word specific items first
+      "canned soup",
+      "canned beans",
+      "canned tomato",
+      "canned fruit",
+      "canned vegetables",
+      "canned corn",
+      "canned peas",
+      "canned carrots",
+      "canned green beans",
+      "canned mushrooms",
+      "canned olives",
+      "canned tuna",
+      "canned salmon",
+      "canned sardines",
+      "canned chicken",
+      "canned peaches",
+      "canned pears",
+      "canned pineapple",
+
+      "tomato sauce",
+      "tomato paste",
+      "diced tomatoes",
+      "crushed tomatoes",
+      "stewed tomatoes",
+      "tomato puree",
+      "marinara",
+      "pasta sauce",
+
+      "black beans",
+      "kidney beans",
+      "pinto beans",
+      "chickpeas",
+      "garbanzo beans",
+      "navy beans",
+      "cannellini beans",
+      "baked beans",
+      "refried beans",
+
+      "soup",
+      "broth",
+      "stock",
+      "chicken broth",
+      "beef broth",
+      "vegetable broth",
+      "chicken stock",
+      "beef stock",
+
+      "salsa",
+
+      "canned",
+      "can",
+      "jarred",
+      "jar",
+
+      "canned fruit",
+      "canned peaches",
+      "canned pears",
+      "canned pineapple",
+      "fruit cocktail",
+      "applesauce",
+      "cranberry sauce",
+
+      "canned vegetables",
+      "canned corn",
+      "canned peas",
+      "canned carrots",
+      "canned green beans",
+      "canned mushrooms",
+      "canned olives",
+      "pickle",
+      "pickles",
+      "relish",
+      "sauerkraut",
+
+      "tuna",
+      "canned tuna",
+      "canned salmon",
+      "canned sardines",
+      "canned chicken",
+
+      "peanut butter",
+      "almond butter",
+      "nutella",
+      "jam",
+      "jelly",
+      "preserves",
+      "marmalade",
+      "honey",
+      "syrup",
+      "maple syrup",
+      "agave",
+      "molasses",
+    ],
+  },
+  {
+    name: "Pantry & Dry Goods",
+    keywords: [
+      // Grains & Pasta
+      "rice",
+      "white rice",
+      "brown rice",
+      "jasmine rice",
+      "basmati rice",
+      "wild rice",
+      "pasta",
+      "spaghetti",
+      "penne",
+      "rigatoni",
+      "linguine",
+      "fettuccine",
+      "macaroni",
+      "rotini",
+      "bow tie",
+      "farfalle",
+      "orzo",
+      "couscous",
+      "quinoa",
+      "bulgur",
+      "barley",
+      "oats",
+      "oatmeal",
+      "rolled oats",
+      "steel cut oats",
+      "grits",
+
+      // Flour & Baking
+      "flour",
+      "all purpose flour",
+      "whole wheat flour",
+      "bread flour",
+      "cake flour",
+      "almond flour",
+      "coconut flour",
+      "cornmeal",
+      "cornstarch",
+      "baking powder",
+      "baking soda",
+      "yeast",
+      "sugar",
+      "brown sugar",
+      "powdered sugar",
+      "confectioners sugar",
+      "granulated sugar",
+      "vanilla",
+      "vanilla extract",
+      "chocolate chips",
+      "cocoa powder",
+      "baking chocolate",
+      "sprinkles",
+      "food coloring",
+      "corn syrup",
+      "shortening",
+
+      // Cereal & Breakfast
+      "cereal",
+      "granola",
+      "muesli",
+      "cheerios",
+      "frosted flakes",
+      "corn flakes",
+      "rice krispies",
+      "special k",
+      "bran flakes",
+      "raisin bran",
+      "oat bran",
+      "breakfast cereal",
+      "pop tarts",
+      "toaster pastry",
+      "pancake mix",
+      "waffle mix",
+      "bisquick",
+      "cake mix",
+      "brownie mix",
+      "muffin mix",
+
+      // Snacks
+      "chips",
+      "potato chips",
+      "tortilla chips",
+      "corn chips",
+      "doritos",
+      "cheetos",
+      "pringles",
+      "crackers",
+      "saltines",
+      "ritz",
+      "graham crackers",
+      "goldfish",
+      "pretzels",
+      "popcorn",
+      "microwave popcorn",
+      "rice cakes",
+      "granola bar",
+      "protein bar",
+      "energy bar",
+      "trail mix",
+      "mixed nuts",
+      "peanuts",
+      "almonds",
+      "cashews",
+      "walnuts",
+      "pecans",
+      "pistachios",
+      "sunflower seeds",
+      "pumpkin seeds",
+
+      "candy",
+      "chocolate",
+      "gummy",
+      "gummies",
+      "lollipop",
+      "hard candy",
+      "mints",
+      "gum",
+      "chewing gum",
+    ],
+  },
+  {
+    name: "Condiments & Sauces",
+    keywords: [
+      "ketchup",
+      "mustard",
+      "mayonnaise",
+      "mayo",
+      "bbq sauce",
+      "barbecue sauce",
+      "hot sauce",
+      "sriracha",
+      "tabasco",
+      "soy sauce",
+      "teriyaki",
+      "worcestershire",
+      "fish sauce",
+      "oyster sauce",
+      "hoisin",
+      "vinegar",
+      "balsamic vinegar",
+      "apple cider vinegar",
+      "white vinegar",
+      "rice vinegar",
+      "wine vinegar",
+
+      "oil",
+      "olive oil",
+      "vegetable oil",
+      "canola oil",
+      "coconut oil",
+      "sesame oil",
+      "avocado oil",
+      "peanut oil",
+      "sunflower oil",
+      "cooking spray",
+      "pam",
+
+      "salad dressing",
+      "ranch",
+      "italian dressing",
+      "caesar dressing",
+      "vinaigrette",
+      "blue cheese dressing",
+      "thousand island",
+      "honey mustard",
+
+      "sauce",
+      "steak sauce",
+      "a1",
+      "gravy",
+      "enchilada sauce",
+      "taco sauce",
+      "buffalo sauce",
+      "wing sauce",
+      "cocktail sauce",
+      "tartar sauce",
+      "aioli",
+    ],
+  },
+  {
+    name: "Spices & Seasonings",
+    keywords: [
+      // Multi-word specific items first
+      "garlic powder",
+      "onion powder",
+      "garlic salt",
+      "black pepper",
+      "sea salt",
+      "kosher salt",
+      "chili powder",
+      "curry powder",
+      "garam masala",
+      "ginger powder",
+      "bay leaf",
+      "bay leaves",
+      "dried oregano",
+      "dried basil",
+      "dried thyme",
+      "dried rosemary",
+      "italian seasoning",
+      "herbs de provence",
+      "taco seasoning",
+      "ranch seasoning",
+      "everything bagel",
+      "red pepper flake",
+      "crushed red pepper",
+
+      "salt",
+      "pepper",
+      "paprika",
+      "cayenne",
+      "cumin",
+      "coriander",
+      "turmeric",
+      "cinnamon",
+      "nutmeg",
+      "clove",
+      "cloves",
+      "allspice",
+      "sesame seed",
+      "poppy seed",
+      "seasoning",
+      "spice",
+      "spices",
+    ],
+  },
+  {
+    name: "Health & Wellness",
+    keywords: [
+      "vitamin",
+      "vitamins",
+      "supplement",
+      "supplements",
+      "probiotic",
+      "probiotics",
+      "protein powder",
+      "protein",
+      "multivitamin",
+      "omega 3",
+      "fish oil",
+      "vitamin c",
+      "vitamin d",
+      "calcium",
+      "iron",
+      "magnesium",
+      "zinc",
+      "melatonin",
+      "collagen",
+      "fiber supplement",
+      "electrolyte",
+      "bcaa",
+    ],
+  },
+  {
+    name: "Baby & Infant",
+    keywords: [
+      "baby food",
+      "formula",
+      "baby formula",
+      "infant formula",
+      "baby cereal",
+      "diaper",
+      "diapers",
+      "baby wipes",
+      "wipes",
+      "pull ups",
+      "training pants",
+      "baby lotion",
+      "baby shampoo",
+      "baby powder",
+      "pacifier",
+      "bottle",
+      "baby bottle",
+      "sippy cup",
+      "baby snacks",
+      "teething",
+    ],
+  },
+  {
+    name: "Household & Cleaning",
+    keywords: [
+      "paper towel",
+      "paper towels",
+      "toilet paper",
+      "tissue",
+      "tissues",
+      "kleenex",
+      "napkin",
+      "napkins",
+      "paper plate",
+      "plastic cup",
+      "disposable",
+
+      "dish soap",
+      "dishwashing",
+      "detergent",
+      "laundry detergent",
+      "fabric softener",
+      "dryer sheet",
+      "bleach",
+      "stain remover",
+      "oxiclean",
+
+      "cleaner",
+      "cleaning",
+      "all purpose cleaner",
+      "disinfectant",
+      "lysol",
+      "clorox",
+      "windex",
+      "glass cleaner",
+      "bathroom cleaner",
+      "toilet cleaner",
+      "floor cleaner",
+      "wood cleaner",
+      "furniture polish",
+      "duster",
+      "sponge",
+      "sponges",
+      "scrubber",
+      "steel wool",
+      "cleaning cloth",
+      "mop",
+      "broom",
+      "vacuum bag",
+
+      "trash bag",
+      "garbage bag",
+      "storage bag",
+      "ziplock",
+      "ziploc",
+      "plastic bag",
+      "foil",
+      "aluminum foil",
+      "plastic wrap",
+      "saran wrap",
+      "wax paper",
+      "parchment paper",
+      "freezer bag",
+    ],
+  },
+  {
+    name: "Personal Care",
+    keywords: [
+      "shampoo",
+      "conditioner",
+      "body wash",
+      "soap",
+      "bar soap",
+      "hand soap",
+      "lotion",
+      "moisturizer",
+      "face wash",
+      "facial cleanser",
+      "sunscreen",
+      "toothpaste",
+      "toothbrush",
+      "mouthwash",
+      "floss",
+      "dental floss",
+      "deodorant",
+      "antiperspirant",
+      "shaving cream",
+      "razor",
+      "razors",
+      "aftershave",
+      "cologne",
+      "perfume",
+      "body spray",
+
+      "shampoo",
+      "hair gel",
+      "hair spray",
+      "mousse",
+      "hair dye",
+      "hair color",
+
+      "makeup",
+      "mascara",
+      "lipstick",
+      "foundation",
+      "concealer",
+      "eyeliner",
+      "eyeshadow",
+      "blush",
+      "nail polish",
+      "makeup remover",
+
+      "feminine",
+      "tampons",
+      "pads",
+      "panty liners",
+
+      "cotton ball",
+      "cotton swab",
+      "q-tip",
+      "q-tips",
+      "band aid",
+      "bandage",
+    ],
+  },
+  {
+    name: "Pet Supplies",
+    keywords: [
+      "dog food",
+      "cat food",
+      "pet food",
+      "dog treat",
+      "cat treat",
+      "pet treat",
+      "dog toy",
+      "cat toy",
+      "pet toy",
+      "litter",
+      "cat litter",
+      "kitty litter",
+      "dog bone",
+      "rawhide",
+      "catnip",
+      "pet bed",
+      "dog bed",
+      "cat bed",
+      "leash",
+      "collar",
+      "pet shampoo",
+    ],
+  },
+  {
+    name: "Deli & Prepared Foods",
+    keywords: [
+      "deli",
+      "deli meat",
+      "lunch meat",
+      "cold cuts",
+      "sliced turkey",
+      "sliced ham",
+      "roast beef",
+      "pastrami",
+      "corned beef",
+      "liverwurst",
+      "bologna",
+      "deli cheese",
+      "sliced cheese",
+
+      "rotisserie chicken",
+      "fried chicken",
+      "prepared meal",
+      "ready to eat",
+      "potato salad",
+      "coleslaw",
+      "macaroni salad",
+      "pasta salad",
+      "chicken salad",
+      "tuna salad",
+      "egg salad",
+      "hummus",
+      "guacamole",
+      "dip",
+      "salsa",
+      "queso",
+
+      "sandwich",
+      "sub",
+      "wrap",
+      "panini",
+      "prepared sandwich",
+
+      "sushi",
+      "poke",
+      "poke bowl",
+    ],
+  },
+];
+
+/**
+ * Categorizes a single grocery item into a department
+ * @param item The grocery item to categorize
+ * @returns The department name or "Other" if no match found
+ */
+export function categorizeItem(item: string): string {
+  const normalizedItem = item.toLowerCase().trim();
+
+  // Track all matching keywords with their departments and lengths
+  const matches: Array<{
+    department: string;
+    keyword: string;
+    length: number;
+  }> = [];
+
+  // Check each department's keywords
+  for (const department of DEPARTMENTS) {
+    for (const keyword of department.keywords) {
+      // Escape special regex characters in the keyword
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+      // Check if the item contains the keyword
+      // Use word boundaries to avoid partial matches (e.g., "pea" in "peach")
+      const regex = new RegExp(`\\b${escapedKeyword}\\b`, "i");
+      if (regex.test(normalizedItem)) {
+        matches.push({
+          department: department.name,
+          keyword: keyword,
+          length: keyword.length,
+        });
+      }
+    }
+  }
+
+  // If we have matches, return the one with the longest keyword
+  // (more specific matches are preferred)
+  if (matches.length > 0) {
+    matches.sort((a, b) => b.length - a.length);
+    return matches[0].department;
+  }
+
+  // If no match found, return "Other"
+  return "Other";
+}
+
+/**
+ * Organizes a list of grocery items by department using keyword matching
+ * @param items Array of grocery item names
+ * @returns Array of strings with department headers and items
+ */
+function organizeByKeywords(items: string[]): string[] {
+  // Categorize each item
+  const categorized = new Map<string, string[]>();
+
+  items.forEach((item) => {
+    const department = categorizeItem(item);
+    if (!categorized.has(department)) {
+      categorized.set(department, []);
+    }
+    categorized.get(department)!.push(item.trim());
+  });
+
+  // Define a preferred order for departments
+  const departmentOrder = [
+    "Produce",
+    "Meat & Seafood",
+    "Dairy & Eggs",
+    "Bakery",
+    "Deli & Prepared Foods",
+    "Frozen Foods",
+    "Beverages",
+    "Canned & Jarred Goods",
+    "Pantry & Dry Goods",
+    "Condiments & Sauces",
+    "Spices & Seasonings",
+    "Health & Wellness",
+    "Baby & Infant",
+    "Household & Cleaning",
+    "Personal Care",
+    "Pet Supplies",
+    "Other",
+  ];
+
+  // Build the result with departments in the preferred order
+  const result: string[] = [];
+
+  for (const department of departmentOrder) {
+    const departmentItems = categorized.get(department);
+    if (departmentItems && departmentItems.length > 0) {
+      result.push(`[${department}]`);
+      result.push(...departmentItems);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Organizes a list of grocery items by department using Anthropic Claude AI
+ * @param items Array of grocery item names
+ * @param anthropicClient Initialized Anthropic client
+ * @returns Array of strings with department headers and items
+ */
+async function organizeByAI(
+  items: string[],
+  anthropicClient: Anthropic
+): Promise<string[]> {
+  const validItems = items.filter((item) => item.trim().length > 0);
+
+  if (validItems.length === 0) {
+    return [];
+  }
+
+  try {
+    const prompt = `You are a helpful assistant that organizes grocery lists by store department.
+
+Given the following grocery items, organize them into logical grocery store departments (like Produce, Dairy, Meat, Bakery, Canned Goods, Frozen Foods, Snacks, Beverages, etc.).
+
+Return the organized list in this exact format:
+- Each department name should be on its own line, surrounded by square brackets like [Department Name]
+- After each department name, list all items that belong to that department, one per line
+- Do not number the items, just list them
+- Keep the original item names exactly as provided
+- If an item doesn't clearly fit into a grocery department, put it in [Other]
+
+Grocery items:
+${validItems.map((item) => `- ${item}`).join("\n")}
+
+Return only the organized list, no other text or explanations.`;
+
+    const response = await anthropicClient.messages.create({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 2000,
+      temperature: 0.3, // Lower temperature for more consistent categorization
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const content = response.content[0];
+    if (!content || content.type !== "text") {
+      console.error("No text content returned from Anthropic");
+      return organizeByKeywords(validItems);
+    }
+
+    // Parse the response into our expected format
+    const lines = content.text
+      .split("\n")
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0 && !line.startsWith("-"));
+
+    return lines;
+  } catch (error) {
+    console.error("Error calling Anthropic API:", error);
+    // Fall back to keyword-based categorization if API call fails
+    return organizeByKeywords(validItems);
+  }
+}
+
+/**
+ * Main function to organize grocery items by department
+ * Automatically chooses between AI and keyword-based categorization
+ * @param items Array of grocery item names
+ * @param apiKey Optional Anthropic API key. If provided, uses AI categorization.
+ * @returns Array of strings with department headers and items
+ */
+export async function organizeGroceriesByDepartment(
+  items: string[],
+  apiKey?: string
+): Promise<string[]> {
+  // Filter out empty items
+  const validItems = items.filter((item) => item.trim().length > 0);
+
+  if (validItems.length === 0) {
+    return [];
+  }
+
+  // If API key is provided, try AI categorization
+  if (apiKey && apiKey.trim() !== "") {
+    try {
+      const anthropic = new Anthropic({ apiKey });
+      return await organizeByAI(validItems, anthropic);
+    } catch (error) {
+      console.warn(
+        "Failed to initialize Anthropic client, falling back to keyword matching:",
+        error
+      );
+      return organizeByKeywords(validItems);
+    }
+  }
+
+  // Otherwise, use keyword-based categorization
+  console.log("Using keyword-based categorization (no API key provided)");
+  return organizeByKeywords(validItems);
+}
+
+/**
+ * Gets statistics about the categorization
+ * @param items Array of grocery items
+ * @returns Object with categorization statistics
+ */
+export function getCategorizationStats(items: string[]): {
+  totalItems: number;
+  categorizedItems: number;
+  uncategorizedItems: number;
+  departments: Map<string, number>;
+} {
+  const departments = new Map<string, number>();
+  let categorizedItems = 0;
+  let uncategorizedItems = 0;
+
+  items.forEach((item) => {
+    const department = categorizeItem(item);
+    departments.set(department, (departments.get(department) || 0) + 1);
+
+    if (department === "Other") {
+      uncategorizedItems++;
+    } else {
+      categorizedItems++;
+    }
+  });
+
+  return {
+    totalItems: items.length,
+    categorizedItems,
+    uncategorizedItems,
+    departments,
+  };
+}
