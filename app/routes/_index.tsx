@@ -4,7 +4,7 @@ import type {
   MetaFunction,
   ActionFunction,
 } from "partymix";
-import { useLoaderData, Form, useNavigate } from "@remix-run/react";
+import { useLoaderData, Form, useNavigate, useFetcher } from "@remix-run/react";
 import { requireAuth } from "~/utils/session.server";
 import { useEffect, useState } from "react";
 
@@ -88,9 +88,9 @@ export const action: ActionFunction = async function ({ request }) {
 export default function Index() {
   const { userName, partykitHost } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const fetcher = useFetcher<typeof action>();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [newSlug, setNewSlug] = useState("");
   const [slugError, setSlugError] = useState("");
@@ -124,28 +124,19 @@ export default function Index() {
     fetchDocuments();
   }, [partykitHost]);
 
-  const handleCreateNew = async () => {
-    setCreating(true);
-    try {
-      const formData = new FormData();
-      formData.append("action", "create");
-
-      const response = await fetch("/?index", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.slug) {
-          navigate(`/docs/${data.slug}`);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to create document:", error);
-    } finally {
-      setCreating(false);
+  // Handle navigation when document creation is complete
+  useEffect(() => {
+    if (fetcher.data && "slug" in fetcher.data && fetcher.state === "idle") {
+      navigate(`/docs/${fetcher.data.slug}`);
+    } else if (fetcher.data && "error" in fetcher.data && fetcher.state === "idle") {
+      alert(`Failed to create document: ${fetcher.data.error}`);
     }
+  }, [fetcher.data, fetcher.state, navigate]);
+
+  const handleCreateNew = () => {
+    const formData = new FormData();
+    formData.append("action", "create");
+    fetcher.submit(formData, { method: "post" });
   };
 
   const getPreviewText = (content: string) => {
@@ -196,12 +187,21 @@ export default function Index() {
   const handleSaveSlug = async (oldSlug: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (!newSlug || newSlug.trim() === "") {
+    const trimmedSlug = newSlug.trim();
+
+    if (!trimmedSlug) {
       setSlugError("Slug cannot be empty");
       return;
     }
 
-    if (newSlug === oldSlug) {
+    // Validate slug format: only alphanumeric, dashes, dots, and underscores
+    const slugRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!slugRegex.test(trimmedSlug)) {
+      setSlugError("Slug can only contain letters, numbers, dashes, dots, and underscores");
+      return;
+    }
+
+    if (trimmedSlug === oldSlug) {
       handleCancelEdit();
       return;
     }
@@ -217,13 +217,13 @@ export default function Index() {
         : `https://${partykitHost}`;
 
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${oldSlug}`,
+        `${host}/parties/documents/default/documents/${encodeURIComponent(oldSlug)}`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ newSlug: newSlug.trim() }),
+          body: JSON.stringify({ newSlug: trimmedSlug }),
         }
       );
 
@@ -236,7 +236,7 @@ export default function Index() {
       // Update local state
       setDocuments((docs) =>
         docs.map((doc) =>
-          doc.slug === oldSlug ? { ...doc, slug: newSlug.trim() } : doc
+          doc.slug === oldSlug ? { ...doc, slug: trimmedSlug } : doc
         )
       );
       handleCancelEdit();
@@ -264,7 +264,7 @@ export default function Index() {
         : `https://${partykitHost}`;
 
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${slug}/archive`,
+        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/archive`,
         {
           method: "POST",
         }
@@ -617,13 +617,13 @@ export default function Index() {
                 className="doc-card create-card"
                 onClick={handleCreateNew}
                 style={{
-                  opacity: creating ? 0.7 : 1,
-                  pointerEvents: creating ? "none" : "auto",
+                  opacity: fetcher.state !== "idle" ? 0.7 : 1,
+                  pointerEvents: fetcher.state !== "idle" ? "none" : "auto",
                 }}
               >
                 <div className="create-icon">+</div>
                 <div className="create-text">
-                  {creating ? "Creating..." : "Create new"}
+                  {fetcher.state !== "idle" ? "Creating..." : "Create new"}
                 </div>
               </div>
 
