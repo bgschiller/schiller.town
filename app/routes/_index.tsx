@@ -23,6 +23,7 @@ type Document = {
   content: string;
   createdAt: number;
   updatedAt: number;
+  archived: boolean;
 };
 
 export const loader: LoaderFunction = async function ({
@@ -244,6 +245,42 @@ export default function Index() {
     }
   };
 
+  const handleArchive = async (slug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm("Archive this document?")) {
+      return;
+    }
+
+    try {
+      const isDevelopment =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "0.0.0.0" ||
+        window.location.hostname === "127.0.0.1";
+
+      const host = isDevelopment
+        ? `http://${window.location.hostname}:1999`
+        : `https://${partykitHost}`;
+
+      const response = await fetch(
+        `${host}/parties/documents/default/documents/${slug}/archive`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (response.ok) {
+        // Remove from local state
+        setDocuments((docs) => docs.filter((doc) => doc.slug !== slug));
+      } else {
+        alert("Failed to archive document");
+      }
+    } catch (error) {
+      console.error("Error archiving document:", error);
+      alert("Failed to archive document");
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -261,10 +298,27 @@ export default function Index() {
           justify-content: space-between;
         }
 
+        .header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
         .docs-title {
           font-size: 2rem;
           font-weight: 700;
           color: #1a1a1a;
+        }
+
+        .archived-link {
+          color: #667eea;
+          text-decoration: none;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+
+        .archived-link:hover {
+          text-decoration: underline;
         }
 
         .user-info {
@@ -458,6 +512,30 @@ export default function Index() {
           color: #9ca3af;
           padding-top: 0.5rem;
           border-top: 1px solid #f3f4f6;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .archive-button {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          font-size: 0.75rem;
+          border-radius: 0.25rem;
+          transition: all 0.2s;
+          opacity: 0;
+        }
+
+        .doc-card:hover .archive-button {
+          opacity: 1;
+        }
+
+        .archive-button:hover {
+          color: #f59e0b;
+          background: #fef3c7;
         }
 
         .create-card {
@@ -513,7 +591,12 @@ export default function Index() {
 
       <div className="docs-container">
         <div className="docs-header">
-          <h1 className="docs-title">Documents</h1>
+          <div className="header-left">
+            <h1 className="docs-title">Documents</h1>
+            <a href="/archived-docs" className="archived-link">
+              📦 View archived documents
+            </a>
+          </div>
           <div className="user-info">
             <span>👋 {userName}</span>
             <Form method="post" action="/logout">
@@ -614,7 +697,14 @@ export default function Index() {
                     {getPreviewText(doc.content)}
                   </div>
                   <div className="doc-footer">
-                    Edited {formatDate(doc.updatedAt)}
+                    <span>Edited {formatDate(doc.updatedAt)}</span>
+                    <button
+                      className="archive-button"
+                      onClick={(e) => handleArchive(doc.slug, e)}
+                      title="Archive document"
+                    >
+                      📦 Archive
+                    </button>
                   </div>
                 </div>
               ))}

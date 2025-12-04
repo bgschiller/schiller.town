@@ -6,6 +6,7 @@ export type Document = {
   content: string;
   createdAt: number;
   updatedAt: number;
+  archived: boolean;
 };
 
 export default class DocumentsServer implements Party.Server {
@@ -20,8 +21,9 @@ export default class DocumentsServer implements Party.Server {
     const path = pathMatch ? pathMatch[1] : url.pathname;
 
     if (request.method === "GET" && path === "/documents") {
-      // List all documents
-      const documents = await this.getAllDocuments();
+      // List all documents (optionally filter by archived status)
+      const showArchived = url.searchParams.get("archived") === "true";
+      const documents = await this.getAllDocuments(showArchived);
       return Response.json(documents);
     }
 
@@ -51,6 +53,7 @@ export default class DocumentsServer implements Party.Server {
         content: "",
         createdAt: now,
         updatedAt: now,
+        archived: false,
       };
 
       await this.party.storage.put(doc.slug, doc);
@@ -126,14 +129,87 @@ export default class DocumentsServer implements Party.Server {
       return Response.json(updatedDoc);
     }
 
+    if (request.method === "POST" && path.endsWith("/archive")) {
+      // Archive a document
+      const slug = path.split("/").slice(-2)[0];
+      if (!slug) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const doc = await this.party.storage.get<Document>(slug);
+      if (!doc) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const updatedDoc: Document = {
+        ...doc,
+        archived: true,
+        updatedAt: Date.now(),
+      };
+
+      await this.party.storage.put(slug, updatedDoc);
+      return Response.json(updatedDoc);
+    }
+
+    if (request.method === "POST" && path.endsWith("/restore")) {
+      // Restore an archived document
+      const slug = path.split("/").slice(-2)[0];
+      if (!slug) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const doc = await this.party.storage.get<Document>(slug);
+      if (!doc) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const updatedDoc: Document = {
+        ...doc,
+        archived: false,
+        updatedAt: Date.now(),
+      };
+
+      await this.party.storage.put(slug, updatedDoc);
+      return Response.json(updatedDoc);
+    }
+
+    if (request.method === "DELETE" && path.startsWith("/documents/")) {
+      // Permanently delete a document (only if already archived)
+      const slug = path.split("/").pop();
+      if (!slug) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const doc = await this.party.storage.get<Document>(slug);
+      if (!doc) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      if (!doc.archived) {
+        return new Response(
+          "Document must be archived before it can be deleted",
+          { status: 400 }
+        );
+      }
+
+      await this.party.storage.delete(slug);
+      return Response.json({ success: true, deletedSlug: slug });
+    }
+
     return new Response("Not found", { status: 404 });
   }
 
-  private async getAllDocuments(): Promise<Document[]> {
+  private async getAllDocuments(
+    showArchived: boolean = false
+  ): Promise<Document[]> {
     const docs: Document[] = [];
     await this.party.storage.list().then((entries) => {
       for (const [, value] of entries) {
-        docs.push(value as Document);
+        const doc = value as Document;
+        // Filter by archived status
+        if (showArchived ? doc.archived : !doc.archived) {
+          docs.push(doc);
+        }
       }
     });
 
