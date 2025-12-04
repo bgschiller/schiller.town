@@ -18,7 +18,7 @@ import {
 } from "~/utils/collaboration.client";
 import { MergeAdjacentLists } from "~/utils/merge-adjacent-lists";
 import { requireAuth } from "~/utils/session.server";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 declare const PARTYKIT_HOST: string;
 
@@ -81,6 +81,59 @@ export default function DocPage() {
   const [ydoc, setYdoc] = useState<ReturnType<typeof getYDoc>>(null);
   const [isClient, setIsClient] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
+
+  // Pick a random grocery item emoji for the Group Items button
+  const foodEmoji = useMemo(() => {
+    const groceryEmojis = [
+      "🥑", // Avocado
+      "🍅", // Tomato
+      "🥕", // Carrot
+      "🥦", // Broccoli
+      "🥬", // Leafy greens
+      "🌽", // Corn
+      "🥔", // Potato
+      "🍎", // Apple
+      "🍊", // Orange
+      "🍋", // Lemon
+      "🍌", // Banana
+      "🍇", // Grapes
+      "🍓", // Strawberry
+      "🫐", // Blueberries
+      "🥒", // Cucumber
+      "🧅", // Onion
+      "🧄", // Garlic
+      "🍞", // Bread
+      "🥛", // Milk
+      "🥫", // Canned food
+      "🍄", // Mushroom
+      "🫑", // Bell pepper
+      "🥚", // Eggs
+      "🧀", // Cheese
+      "🍋‍🟩", // Lime
+      "🥥", // Coconut
+      "🍑", // Peach
+      "🍐", // Pear
+      "🍉", // Watermelon
+      "🍒", // Cherries
+      "🥝", // Kiwi
+      "🍍", // Pineapple
+      "🥭", // Mango
+      "🫒", // Olives
+      "🥜", // Peanuts
+      "🌶️", // Hot pepper
+      "🫘", // Beans
+      "🥖", // Baguette
+      "🧈", // Butter
+      "🥓", // Bacon
+      "🍖", // Meat
+      "🍗", // Poultry
+      "🥩", // Steak
+      "🦴", // Bone/Meat
+      "🥞", // Pancake mix
+      "🧇", // Waffle mix
+    ];
+    return groceryEmojis[Math.floor(Math.random() * groceryEmojis.length)];
+  }, []);
 
   // Initialize Y.Doc and provider only on the client
   // Use documentId for the collaboration room so slug changes don't break the connection
@@ -825,14 +878,16 @@ export default function DocPage() {
                         className="bubble-menu-button"
                         disabled={isOrganizing}
                       >
-                        {isOrganizing ? "⏳ Organizing..." : "🗂️ Organize List"}
+                        {isOrganizing
+                          ? "⏳ Grouping..."
+                          : `${foodEmoji} Group Items`}
                       </button>
                       <button
                         onClick={handleFlattenList}
                         className="bubble-menu-button"
                         disabled={isOrganizing}
                       >
-                        📋 Flatten List
+                        📋 Flatten
                       </button>
                     </div>
                   </BubbleMenu>
