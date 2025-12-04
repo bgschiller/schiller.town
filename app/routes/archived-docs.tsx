@@ -43,12 +43,10 @@ export default function ArchivedDocuments() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        // Always use current origin - works locally and through Cloudflare tunnel
+        // Call Remix API route
         const host = window.location.origin;
+        const response = await fetch(`${host}/api/documents?archived=true`);
 
-        const response = await fetch(
-          `${host}/parties/documents/default/documents?archived=true`
-        );
         if (response.ok) {
           const docs = await response.json();
           setDocuments(docs);
@@ -103,11 +101,10 @@ export default function ArchivedDocuments() {
     }
 
     try {
-      // Always use current origin - works locally and through Cloudflare tunnel
+      // Call Remix API route
       const host = window.location.origin;
-
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/restore`,
+        `${host}/api/documents/${encodeURIComponent(slug)}/restore`,
         {
           method: "POST",
         }
@@ -137,11 +134,10 @@ export default function ArchivedDocuments() {
     }
 
     try {
-      // Always use current origin - works locally and through Cloudflare tunnel
+      // Call Remix API route
       const host = window.location.origin;
-
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`,
+        `${host}/api/documents/${encodeURIComponent(slug)}`,
         {
           method: "DELETE",
         }
@@ -151,8 +147,8 @@ export default function ArchivedDocuments() {
         // Remove from local state
         setDocuments((docs) => docs.filter((doc) => doc.slug !== slug));
       } else {
-        const text = await response.text();
-        alert(text || "Failed to delete document");
+        const result = await response.json();
+        alert(result.error || "Failed to delete document");
       }
     } catch (error) {
       console.error("Error deleting document:", error);

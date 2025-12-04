@@ -1,5 +1,4 @@
 import type * as Party from "partykit/server";
-import { organizeGroceriesByDepartment } from "./grocery-categorizer";
 
 export type Document = {
   id: string; // Stable identifier for the document
@@ -11,26 +10,35 @@ export type Document = {
   archived: boolean;
 };
 
+/**
+ * Simplified DocumentsServer that only provides low-level storage operations.
+ * All HTTP request handling and business logic has been moved to Remix routes.
+ * This server now only handles direct storage operations:
+ * - storage-list: List all documents from storage
+ * - storage-get: Get a specific document by slug
+ * - storage-put: Create or update a document
+ * - storage-delete: Delete a document by slug
+ */
 export default class DocumentsServer implements Party.Server {
   constructor(public party: Party.Room) {}
 
   async onRequest(request: Party.Request) {
     const url = new URL(request.url);
 
-    // The pathname will be like /parties/documents/{room}/documents
+    // The pathname will be like /parties/documents/{room}/storage-*
     // We need to extract the path after the room name
     const pathMatch = url.pathname.match(/^\/parties\/documents\/[^/]+(.*)$/);
     const path = pathMatch ? pathMatch[1] : url.pathname;
 
-    if (request.method === "GET" && path === "/documents") {
-      // List all documents (optionally filter by archived status)
+    // Storage operation: List all documents
+    if (request.method === "GET" && path === "/storage-list") {
       const showArchived = url.searchParams.get("archived") === "true";
       const documents = await this.getAllDocuments(showArchived);
       return Response.json(documents);
     }
 
-    if (request.method === "GET" && path.startsWith("/documents/")) {
-      // Get a specific document
+    // Storage operation: Get a specific document by slug
+    if (request.method === "GET" && path.startsWith("/storage-get/")) {
       const slugEncoded = path.split("/").pop();
       if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
@@ -53,209 +61,23 @@ export default class DocumentsServer implements Party.Server {
       return Response.json(doc);
     }
 
-    if (request.method === "POST" && path === "/documents") {
-      // Create a new document
-      const body = (await request.json()) as { slug: string; title?: string };
-
-      // Validate slug format: only alphanumeric, dashes, dots, and underscores
-      const slugRegex = /^[a-zA-Z0-9._-]+$/;
-      if (!body.slug || !slugRegex.test(body.slug)) {
-        return new Response(
-          "Slug can only contain letters, numbers, dashes, dots, and underscores",
-          { status: 400 }
-        );
-      }
-
-      const now = Date.now();
-
-      // Generate a unique ID for the document
-      const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const doc: Document = {
-        id,
-        slug: body.slug,
-        title: body.title || "Untitled",
-        content: "",
-        createdAt: now,
-        updatedAt: now,
-        archived: false,
-      };
-
-      await this.party.storage.put(doc.slug, doc);
-      return Response.json(doc);
+    // Storage operation: Put (create or update) a document
+    if (request.method === "POST" && path === "/storage-put") {
+      const body = (await request.json()) as { key: string; value: Document };
+      await this.party.storage.put(body.key, body.value);
+      return Response.json({ success: true });
     }
 
-    if (request.method === "PUT" && path.startsWith("/documents/")) {
-      // Update a document
+    // Storage operation: Delete a document by slug
+    if (request.method === "POST" && path.startsWith("/storage-delete/")) {
       const slugEncoded = path.split("/").pop();
       if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
       const slug = decodeURIComponent(slugEncoded);
-
-      const doc = await this.party.storage.get<Document>(slug);
-      if (!doc) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const updates = (await request.json()) as Partial<Document>;
-      const updatedDoc: Document = {
-        ...doc,
-        ...updates,
-        id: doc.id, // Don't allow changing the ID
-        slug: doc.slug, // Don't allow changing the slug
-        updatedAt: Date.now(),
-      };
-
-      await this.party.storage.put(slug, updatedDoc);
-      return Response.json(updatedDoc);
-    }
-
-    if (request.method === "PATCH" && path.startsWith("/documents/")) {
-      // Change document slug
-      const oldSlugEncoded = path.split("/").pop();
-      if (!oldSlugEncoded) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      // Decode the URL-encoded slug
-      const oldSlug = decodeURIComponent(oldSlugEncoded);
-
-      const doc = await this.party.storage.get<Document>(oldSlug);
-      if (!doc) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const { newSlug } = (await request.json()) as { newSlug: string };
-
-      if (!newSlug || newSlug.trim() === "") {
-        return new Response("New slug is required", { status: 400 });
-      }
-
-      // Validate slug format: only alphanumeric, dashes, dots, and underscores
-      const slugRegex = /^[a-zA-Z0-9._-]+$/;
-      if (!slugRegex.test(newSlug)) {
-        return new Response(
-          "Slug can only contain letters, numbers, dashes, dots, and underscores",
-          { status: 400 }
-        );
-      }
-
-      // Check if the new slug is the same as the old one
-      if (newSlug === oldSlug) {
-        return Response.json(doc);
-      }
-
-      // Check if the new slug already exists
-      const existingDoc = await this.party.storage.get<Document>(newSlug);
-      if (existingDoc) {
-        return new Response("A document with this slug already exists", {
-          status: 409,
-        });
-      }
-
-      // Create updated document with new slug (preserving ID for collaboration)
-      const updatedDoc: Document = {
-        ...doc,
-        id: doc.id, // Keep the same ID so collaboration data remains connected
-        slug: newSlug,
-        updatedAt: Date.now(),
-      };
-
-      // Delete old document and create new one
-      await this.party.storage.delete(oldSlug);
-      await this.party.storage.put(newSlug, updatedDoc);
-
-      return Response.json(updatedDoc);
-    }
-
-    if (request.method === "POST" && path.endsWith("/archive")) {
-      // Archive a document
-      const slugEncoded = path.split("/").slice(-2)[0];
-      if (!slugEncoded) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const slug = decodeURIComponent(slugEncoded);
-      const doc = await this.party.storage.get<Document>(slug);
-      if (!doc) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const updatedDoc: Document = {
-        ...doc,
-        archived: true,
-        updatedAt: Date.now(),
-      };
-
-      await this.party.storage.put(slug, updatedDoc);
-      return Response.json(updatedDoc);
-    }
-
-    if (request.method === "POST" && path.endsWith("/restore")) {
-      // Restore an archived document
-      const slugEncoded = path.split("/").slice(-2)[0];
-      if (!slugEncoded) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const slug = decodeURIComponent(slugEncoded);
-      const doc = await this.party.storage.get<Document>(slug);
-      if (!doc) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const updatedDoc: Document = {
-        ...doc,
-        archived: false,
-        updatedAt: Date.now(),
-      };
-
-      await this.party.storage.put(slug, updatedDoc);
-      return Response.json(updatedDoc);
-    }
-
-    if (request.method === "DELETE" && path.startsWith("/documents/")) {
-      // Permanently delete a document (only if already archived)
-      const slugEncoded = path.split("/").pop();
-      if (!slugEncoded) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      const slug = decodeURIComponent(slugEncoded);
-      const doc = await this.party.storage.get<Document>(slug);
-      if (!doc) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      if (!doc.archived) {
-        return new Response(
-          "Document must be archived before it can be deleted",
-          { status: 400 }
-        );
-      }
-
       await this.party.storage.delete(slug);
-      return Response.json({ success: true, deletedSlug: slug });
-    }
-
-    if (request.method === "POST" && path === "/organize-list") {
-      // Organize a list of items (e.g., groceries by department)
-      const body = (await request.json()) as { items: string[] };
-
-      if (!body.items || !Array.isArray(body.items)) {
-        return new Response("Invalid request: items array required", {
-          status: 400,
-        });
-      }
-
-      // Use the grocery categorizer - it will automatically choose between
-      // AI and keyword-based categorization depending on API key availability
-      const apiKey = this.party.env.ANTHROPIC_API_KEY as string | undefined;
-      const organized = await organizeGroceriesByDepartment(body.items, apiKey);
-
-      return Response.json({ organized });
+      return Response.json({ success: true });
     }
 
     return new Response("Not found", { status: 404 });

@@ -6,6 +6,7 @@ import type * as Party from "partykit/server";
 declare module "@remix-run/server-runtime" {
   export interface AppLoadContext {
     lobby: Party.FetchLobby;
+    env: Record<string, string | undefined>;
   }
 }
 
@@ -19,7 +20,10 @@ const handleRequest = createRequestHandler({
   build,
   getLoadContext: (req, lobby, ctx) => {
     // use this function to expose stuff in loaders
-    return { lobby };
+    // In PartyKit/Cloudflare Workers, env vars are available on the context
+    // @ts-expect-error - PartyKit env access pattern
+    const env = ctx.env || {};
+    return { lobby, env };
   },
 });
 

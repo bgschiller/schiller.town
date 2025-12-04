@@ -49,8 +49,9 @@ export const loader: LoaderFunction = async function ({
   const host = `${url.protocol}//${url.host}`;
 
   try {
+    // Call Remix API route
     const response = await fetch(
-      `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`
+      `${host}/api/documents/${encodeURIComponent(slug)}`
     );
 
     if (!response.ok) {
@@ -197,19 +198,15 @@ export default function DocPage() {
         return;
       }
 
-      // Call server to organize items
+      // Call Remix API route to organize items
       const host = window.location.origin;
-
-      const response = await fetch(
-        `${host}/parties/documents/default/organize-list`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ items }),
-        }
-      );
+      const response = await fetch(`${host}/api/organize-list`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ items }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to organize list");
@@ -326,20 +323,15 @@ export default function DocPage() {
       const content = contentEditor.getText();
 
       try {
+        // Call Remix API route
         const host = window.location.origin;
-
-        await fetch(
-          `${host}/parties/documents/default/documents/${encodeURIComponent(
-            slug
-          )}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ title, content }),
-          }
-        );
+        await fetch(`${host}/api/documents/${encodeURIComponent(slug)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title, content }),
+        });
       } catch (error) {
         console.error("Failed to update document metadata:", error);
       }

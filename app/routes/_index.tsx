@@ -44,20 +44,17 @@ export const action: ActionFunction = async function ({ request }) {
     const slug = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      // Always use the current request's origin - works locally and through Cloudflare tunnel
+      // Call Remix API route instead of PartyKit directly
       const url = new URL(request.url);
       const host = `${url.protocol}//${url.host}`;
 
-      const response = await fetch(
-        `${host}/parties/documents/default/documents`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ slug, title: "Untitled" }),
-        }
-      );
+      const response = await fetch(`${host}/api/documents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug, title: "Untitled" }),
+      });
 
       if (response.ok) {
         return Response.json({ slug });
@@ -92,12 +89,10 @@ export default function Index() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        // Always use current origin - works locally and through Cloudflare tunnel
+        // Call Remix API route
         const host = window.location.origin;
+        const response = await fetch(`${host}/api/documents`);
 
-        const response = await fetch(
-          `${host}/parties/documents/default/documents`
-        );
         if (response.ok) {
           const docs = await response.json();
           setDocuments(docs);
@@ -116,7 +111,11 @@ export default function Index() {
   useEffect(() => {
     if (fetcher.data && "slug" in fetcher.data && fetcher.state === "idle") {
       navigate(`/docs/${fetcher.data.slug}`);
-    } else if (fetcher.data && "error" in fetcher.data && fetcher.state === "idle") {
+    } else if (
+      fetcher.data &&
+      "error" in fetcher.data &&
+      fetcher.state === "idle"
+    ) {
       alert(`Failed to create document: ${fetcher.data.error}`);
     }
   }, [fetcher.data, fetcher.state, navigate]);
@@ -185,7 +184,9 @@ export default function Index() {
     // Validate slug format: only alphanumeric, dashes, dots, and underscores
     const slugRegex = /^[a-zA-Z0-9._-]+$/;
     if (!slugRegex.test(trimmedSlug)) {
-      setSlugError("Slug can only contain letters, numbers, dashes, dots, and underscores");
+      setSlugError(
+        "Slug can only contain letters, numbers, dashes, dots, and underscores"
+      );
       return;
     }
 
@@ -195,11 +196,10 @@ export default function Index() {
     }
 
     try {
-      // Always use current origin - works locally and through Cloudflare tunnel
+      // Call Remix API route
       const host = window.location.origin;
-
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${encodeURIComponent(oldSlug)}`,
+        `${host}/api/documents/${encodeURIComponent(oldSlug)}`,
         {
           method: "PATCH",
           headers: {
@@ -210,8 +210,8 @@ export default function Index() {
       );
 
       if (!response.ok) {
-        const text = await response.text();
-        setSlugError(text || "Failed to update slug");
+        const result = await response.json();
+        setSlugError(result.error || "Failed to update slug");
         return;
       }
 
@@ -236,11 +236,10 @@ export default function Index() {
     }
 
     try {
-      // Always use current origin - works locally and through Cloudflare tunnel
+      // Call Remix API route
       const host = window.location.origin;
-
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/archive`,
+        `${host}/api/documents/${encodeURIComponent(slug)}/archive`,
         {
           method: "POST",
         }
