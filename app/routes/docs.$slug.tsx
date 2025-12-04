@@ -55,7 +55,7 @@ export const loader: LoaderFunction = async function ({
 
   try {
     const response = await fetch(
-      `${host}/parties/documents/default/documents/${slug}`
+      `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`
     );
 
     if (!response.ok) {
@@ -176,7 +176,7 @@ export default function DocPage() {
           ? `http://${window.location.hostname}:1999`
           : `https://${partykitHost}`;
 
-        await fetch(`${host}/parties/documents/default/documents/${slug}`, {
+        await fetch(`${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",

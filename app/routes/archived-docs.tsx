@@ -119,7 +119,7 @@ export default function ArchivedDocuments() {
         : `https://${partykitHost}`;
 
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${slug}/restore`,
+        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/restore`,
         {
           method: "POST",
         }
@@ -159,7 +159,7 @@ export default function ArchivedDocuments() {
         : `https://${partykitHost}`;
 
       const response = await fetch(
-        `${host}/parties/documents/default/documents/${slug}`,
+        `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`,
         {
           method: "DELETE",
         }

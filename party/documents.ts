@@ -30,11 +30,12 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "GET" && path.startsWith("/documents/")) {
       // Get a specific document
-      const slug = path.split("/").pop();
-      if (!slug) {
+      const slugEncoded = path.split("/").pop();
+      if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
+      const slug = decodeURIComponent(slugEncoded);
       let doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
         return new Response("Not found", { status: 404 });
@@ -54,6 +55,16 @@ export default class DocumentsServer implements Party.Server {
     if (request.method === "POST" && path === "/documents") {
       // Create a new document
       const body = (await request.json()) as { slug: string; title?: string };
+
+      // Validate slug format: only alphanumeric, dashes, dots, and underscores
+      const slugRegex = /^[a-zA-Z0-9._-]+$/;
+      if (!body.slug || !slugRegex.test(body.slug)) {
+        return new Response(
+          "Slug can only contain letters, numbers, dashes, dots, and underscores",
+          { status: 400 }
+        );
+      }
+
       const now = Date.now();
 
       // Generate a unique ID for the document
@@ -75,10 +86,12 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "PUT" && path.startsWith("/documents/")) {
       // Update a document
-      const slug = path.split("/").pop();
-      if (!slug) {
+      const slugEncoded = path.split("/").pop();
+      if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
+
+      const slug = decodeURIComponent(slugEncoded);
 
       const doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
@@ -100,10 +113,13 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "PATCH" && path.startsWith("/documents/")) {
       // Change document slug
-      const oldSlug = path.split("/").pop();
-      if (!oldSlug) {
+      const oldSlugEncoded = path.split("/").pop();
+      if (!oldSlugEncoded) {
         return new Response("Not found", { status: 404 });
       }
+
+      // Decode the URL-encoded slug
+      const oldSlug = decodeURIComponent(oldSlugEncoded);
 
       const doc = await this.party.storage.get<Document>(oldSlug);
       if (!doc) {
@@ -114,6 +130,15 @@ export default class DocumentsServer implements Party.Server {
 
       if (!newSlug || newSlug.trim() === "") {
         return new Response("New slug is required", { status: 400 });
+      }
+
+      // Validate slug format: only alphanumeric, dashes, dots, and underscores
+      const slugRegex = /^[a-zA-Z0-9._-]+$/;
+      if (!slugRegex.test(newSlug)) {
+        return new Response(
+          "Slug can only contain letters, numbers, dashes, dots, and underscores",
+          { status: 400 }
+        );
       }
 
       // Check if the new slug is the same as the old one
@@ -146,11 +171,12 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "POST" && path.endsWith("/archive")) {
       // Archive a document
-      const slug = path.split("/").slice(-2)[0];
-      if (!slug) {
+      const slugEncoded = path.split("/").slice(-2)[0];
+      if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
+      const slug = decodeURIComponent(slugEncoded);
       const doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
         return new Response("Not found", { status: 404 });
@@ -168,11 +194,12 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "POST" && path.endsWith("/restore")) {
       // Restore an archived document
-      const slug = path.split("/").slice(-2)[0];
-      if (!slug) {
+      const slugEncoded = path.split("/").slice(-2)[0];
+      if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
+      const slug = decodeURIComponent(slugEncoded);
       const doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
         return new Response("Not found", { status: 404 });
@@ -190,11 +217,12 @@ export default class DocumentsServer implements Party.Server {
 
     if (request.method === "DELETE" && path.startsWith("/documents/")) {
       // Permanently delete a document (only if already archived)
-      const slug = path.split("/").pop();
-      if (!slug) {
+      const slugEncoded = path.split("/").pop();
+      if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
+      const slug = decodeURIComponent(slugEncoded);
       const doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
         return new Response("Not found", { status: 404 });
