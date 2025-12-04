@@ -7,7 +7,8 @@
   "parties": {
     // we also have a sub party that we use just for geo presence
     "geo": "party/geo.ts",
-    "yjs": "party/yjs.ts"
+    "yjs": "party/yjs.ts",
+    "documents": "party/documents.ts"
   },
   "serve": "public"
 }

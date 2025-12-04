@@ -2,25 +2,27 @@ import type {
   LoaderFunction,
   LoaderFunctionArgs,
   MetaFunction,
+  ActionFunction,
 } from "partymix";
-import { useLoaderData, Form } from "@remix-run/react";
-import WhosHere from "../components/whos-here";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Document from "@tiptap/extension-document";
-import Text from "@tiptap/extension-text";
-import Paragraph from "@tiptap/extension-paragraph";
-import Placeholder from "@tiptap/extension-placeholder";
-import { Collaboration, ydoc } from "~/utils/collaboration.client";
+import { useLoaderData, Form, useNavigate } from "@remix-run/react";
 import { requireAuth } from "~/utils/session.server";
+import { useEffect, useState } from "react";
 
 declare const PARTYKIT_HOST: string;
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Collaborative Note" },
-    { name: "description", content: "Real-time collaborative note taking" },
+    { title: "Documents" },
+    { name: "description", content: "Your collaborative documents" },
   ];
+};
+
+type Document = {
+  slug: string;
+  title: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export const loader: LoaderFunction = async function ({
@@ -31,82 +33,246 @@ export const loader: LoaderFunction = async function ({
   return Response.json({ partykitHost: PARTYKIT_HOST, userName });
 };
 
-export default function Index() {
-  const { userName } = useLoaderData<typeof loader>();
-  let titleEditor;
-  let contentEditor;
+export const action: ActionFunction = async function ({ request }) {
+  const formData = await request.formData();
+  const action = formData.get("action");
 
-  if (typeof document !== "undefined") {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    titleEditor = useEditor({
-      extensions: [
-        Document,
-        Paragraph,
-        Text,
-        Placeholder.configure({
-          placeholder: "Untitled",
-        }),
-        Collaboration.configure({
-          document: ydoc,
-          field: "title",
-        }),
-      ],
-      editorProps: {
-        attributes: {
-          class: "title-editor",
-        },
-      },
-    });
+  if (action === "create") {
+    // Generate a random slug
+    const slug = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    contentEditor = useEditor({
-      extensions: [
-        StarterKit.configure({ history: false }),
-        Placeholder.configure({
-          placeholder: "Start writing...",
-        }),
-        Collaboration.configure({
-          document: ydoc,
-          field: "content",
-        }),
-      ],
-      editorProps: {
-        attributes: {
-          class: "content-editor",
-        },
-      },
-    });
+    try {
+      // Use localhost in development (server-side fetch needs localhost, not 0.0.0.0)
+      const isDevelopment =
+        request.headers.get("host")?.includes("localhost") ||
+        request.headers.get("host")?.includes("0.0.0.0") ||
+        request.headers.get("host")?.includes("127.0.0.1");
+
+      const host = isDevelopment
+        ? "http://127.0.0.1:1999"
+        : `https://${PARTYKIT_HOST}`;
+
+      const response = await fetch(
+        `${host}/parties/documents/default/documents`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ slug, title: "Untitled" }),
+        }
+      );
+
+      if (response.ok) {
+        return Response.json({ slug });
+      }
+
+      return Response.json(
+        { error: `Failed to create document: ${response.status}` },
+        { status: response.status }
+      );
+    } catch (error) {
+      console.error("Error creating document:", error);
+      return Response.json(
+        { error: "Failed to create document" },
+        { status: 500 }
+      );
+    }
   }
+
+  return Response.json({ error: "Invalid action" }, { status: 400 });
+};
+
+export default function Index() {
+  const { userName, partykitHost } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const [newSlug, setNewSlug] = useState("");
+  const [slugError, setSlugError] = useState("");
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const isDevelopment =
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "0.0.0.0" ||
+          window.location.hostname === "127.0.0.1";
+
+        const host = isDevelopment
+          ? `http://${window.location.hostname}:1999`
+          : `https://${partykitHost}`;
+
+        const response = await fetch(
+          `${host}/parties/documents/default/documents`
+        );
+        if (response.ok) {
+          const docs = await response.json();
+          setDocuments(docs);
+        }
+      } catch (error) {
+        console.error("Failed to fetch documents:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [partykitHost]);
+
+  const handleCreateNew = async () => {
+    setCreating(true);
+    try {
+      const formData = new FormData();
+      formData.append("action", "create");
+
+      const response = await fetch("/?index", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.slug) {
+          navigate(`/docs/${data.slug}`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to create document:", error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const getPreviewText = (content: string) => {
+    if (!content) return "No content yet...";
+    // Strip HTML tags and get first 100 characters
+    const text = content.replace(/<[^>]*>/g, "").trim();
+    return text.substring(0, 100) + (text.length > 100 ? "..." : "");
+  };
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffInDays === 0) {
+      return "Today";
+    } else if (diffInDays === 1) {
+      return "Yesterday";
+    } else if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    } else if (diffInDays < 30) {
+      const weeks = Math.floor(diffInDays / 7);
+      return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
+    } else if (diffInDays < 365) {
+      const months = Math.floor(diffInDays / 30);
+      return `${months} month${months > 1 ? "s" : ""} ago`;
+    } else {
+      const years = Math.floor(diffInDays / 365);
+      return `${years} year${years > 1 ? "s" : ""} ago`;
+    }
+  };
+
+  const handleEditSlug = (doc: Document, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingSlug(doc.slug);
+    setNewSlug(doc.slug);
+    setSlugError("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSlug(null);
+    setNewSlug("");
+    setSlugError("");
+  };
+
+  const handleSaveSlug = async (oldSlug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!newSlug || newSlug.trim() === "") {
+      setSlugError("Slug cannot be empty");
+      return;
+    }
+
+    if (newSlug === oldSlug) {
+      handleCancelEdit();
+      return;
+    }
+
+    try {
+      const isDevelopment =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "0.0.0.0" ||
+        window.location.hostname === "127.0.0.1";
+
+      const host = isDevelopment
+        ? `http://${window.location.hostname}:1999`
+        : `https://${partykitHost}`;
+
+      const response = await fetch(
+        `${host}/parties/documents/default/documents/${oldSlug}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ newSlug: newSlug.trim() }),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        setSlugError(text || "Failed to update slug");
+        return;
+      }
+
+      // Update local state
+      setDocuments((docs) =>
+        docs.map((doc) =>
+          doc.slug === oldSlug ? { ...doc, slug: newSlug.trim() } : doc
+        )
+      );
+      handleCancelEdit();
+    } catch (error) {
+      console.error("Error updating slug:", error);
+      setSlugError("Failed to update slug");
+    }
+  };
 
   return (
     <>
       <style>{`
-        .container {
+        .docs-container {
           min-height: 100vh;
-          max-width: var(--max-width);
-          margin: 0 auto;
+          background: #f9fafb;
           padding: 3rem 2rem;
-          position: relative;
         }
 
-        .presence-indicator {
-          position: fixed;
-          top: 2rem;
-          right: 2rem;
-          font-size: 0.875rem;
-          color: #666;
-          background: #f5f5f5;
-          padding: 0.5rem 1rem;
-          border-radius: 2rem;
+        .docs-header {
+          max-width: 1200px;
+          margin: 0 auto 2rem;
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          justify-content: space-between;
         }
 
-        .presence-divider {
-          width: 1px;
-          height: 1rem;
-          background: #d1d5db;
+        .docs-title {
+          font-size: 2rem;
+          font-weight: 700;
+          color: #1a1a1a;
+        }
+
+        .user-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          font-size: 0.875rem;
+          color: #666;
         }
 
         .logout-button {
@@ -125,181 +291,344 @@ export default function Index() {
           color: #991b1b;
         }
 
-        .presence-indicator b {
-          font-weight: 500;
+        .docs-grid {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1.5rem;
         }
 
-        .online-dot {
-          width: 8px;
-          height: 8px;
-          background: #10b981;
-          border-radius: 50%;
-          display: inline-block;
+        .doc-card {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 0.5rem;
+          padding: 1.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          min-height: 180px;
         }
 
-        .title-editor {
-          outline: none;
-          border: none;
+        .doc-card:hover {
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border-color: #d1d5db;
+          transform: translateY(-2px);
         }
 
-        .title-editor .ProseMirror {
-          font-size: 3rem;
-          font-weight: 700;
-          line-height: 1.2;
-          margin-bottom: 1.5rem;
-          outline: none;
+        .doc-card-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
         }
 
-        .title-editor .ProseMirror p {
-          margin: 0;
-        }
-
-        .title-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          color: #d1d5db;
-          pointer-events: none;
-          height: 0;
-          float: left;
-        }
-
-        .content-editor {
-          outline: none;
-          border: none;
-        }
-
-        .content-editor .ProseMirror {
-          font-size: 1.125rem;
-          line-height: 1.75;
-          color: #374151;
-          outline: none;
-          min-height: 60vh;
-        }
-
-        .content-editor .ProseMirror p {
-          margin-bottom: 1rem;
-        }
-
-        .content-editor .ProseMirror h1 {
-          font-size: 2rem;
-          font-weight: 700;
-          margin-top: 2rem;
-          margin-bottom: 1rem;
-        }
-
-        .content-editor .ProseMirror h2 {
+        .doc-icon {
           font-size: 1.5rem;
-          font-weight: 600;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
+          flex-shrink: 0;
         }
 
-        .content-editor .ProseMirror h3 {
-          font-size: 1.25rem;
+        .doc-card-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .doc-title {
+          font-size: 1.125rem;
           font-weight: 600;
-          margin-top: 1.25rem;
+          color: #1a1a1a;
+          margin-bottom: 0.25rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .doc-slug {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          font-family: 'Monaco', 'Courier New', monospace;
+          margin-bottom: 0.5rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .doc-slug-text {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .edit-slug-button {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          cursor: pointer;
+          padding: 0.125rem 0.25rem;
+          font-size: 0.75rem;
+          border-radius: 0.25rem;
+          transition: all 0.2s;
+          opacity: 0;
+        }
+
+        .doc-card:hover .edit-slug-button {
+          opacity: 1;
+        }
+
+        .edit-slug-button:hover {
+          color: #667eea;
+          background: #f3f4f6;
+        }
+
+        .slug-edit-container {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .slug-input-wrapper {
+          display: flex;
+          gap: 0.25rem;
+          align-items: center;
+        }
+
+        .slug-input {
+          font-family: 'Monaco', 'Courier New', monospace;
+          font-size: 0.75rem;
+          padding: 0.25rem 0.375rem;
+          border: 1px solid #667eea;
+          border-radius: 0.25rem;
+          flex: 1;
+          outline: none;
+          background: white;
+          color: #374151;
+        }
+
+        .slug-input:focus {
+          box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .slug-button {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0.25rem;
+          font-size: 0.875rem;
+          border-radius: 0.25rem;
+          transition: all 0.2s;
+        }
+
+        .slug-save-btn {
+          color: #10b981;
+        }
+
+        .slug-save-btn:hover {
+          background: #d1fae5;
+        }
+
+        .slug-cancel-btn {
+          color: #ef4444;
+        }
+
+        .slug-cancel-btn:hover {
+          background: #fee2e2;
+        }
+
+        .slug-error-text {
+          font-size: 0.625rem;
+          color: #dc2626;
+        }
+
+        .doc-preview {
+          font-size: 0.875rem;
+          color: #6b7280;
+          line-height: 1.5;
+          flex: 1;
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+        }
+
+        .doc-footer {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          padding-top: 0.5rem;
+          border-top: 1px solid #f3f4f6;
+        }
+
+        .create-card {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 2px dashed rgba(255, 255, 255, 0.5);
+        }
+
+        .create-card:hover {
+          border-color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        .create-icon {
+          font-size: 3rem;
           margin-bottom: 0.5rem;
         }
 
-        .content-editor .ProseMirror ul,
-        .content-editor .ProseMirror ol {
-          padding-left: 1.5rem;
-          margin-bottom: 1rem;
+        .create-text {
+          font-size: 1.125rem;
+          font-weight: 600;
         }
 
-        .content-editor .ProseMirror li {
-          margin-bottom: 0.1rem;
-        }
-
-        .content-editor .ProseMirror li p {
-          margin-bottom: 0;
-        }
-
-        .content-editor .ProseMirror blockquote {
-          border-left: 3px solid #e5e7eb;
-          padding-left: 1rem;
-          margin-left: 0;
-          margin-bottom: 1rem;
+        .loading {
+          text-align: center;
+          padding: 4rem;
           color: #6b7280;
         }
 
-        .content-editor .ProseMirror code {
-          background: #f3f4f6;
-          padding: 0.125rem 0.25rem;
-          border-radius: 0.25rem;
-          font-family: 'Monaco', 'Courier New', monospace;
-          font-size: 0.875em;
+        .empty-state {
+          max-width: 1200px;
+          margin: 4rem auto;
+          text-align: center;
+          color: #6b7280;
         }
 
-        .content-editor .ProseMirror pre {
-          background: #1f2937;
-          color: #f9fafb;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          overflow-x: auto;
+        .empty-state-icon {
+          font-size: 4rem;
           margin-bottom: 1rem;
+          opacity: 0.5;
         }
 
-        .content-editor .ProseMirror pre code {
-          background: none;
-          padding: 0;
-          color: inherit;
-        }
-
-        .content-editor .ProseMirror p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          color: #d1d5db;
-          pointer-events: none;
-          height: 0;
-          float: left;
-        }
-
-        /* Collaboration cursor styles */
-        .collaboration-cursor__caret {
-          border-left: 2px solid currentColor;
-          border-right: 2px solid currentColor;
-          margin-left: -1px;
-          margin-right: -1px;
-          pointer-events: none;
-          position: relative;
-          word-break: normal;
-        }
-
-        .collaboration-cursor__label {
-          border-radius: 3px;
-          color: #fff;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 600;
-          left: -1px;
-          line-height: normal;
-          padding: 0.1rem 0.3rem;
-          position: absolute;
-          top: -1.4em;
-          user-select: none;
-          white-space: nowrap;
+        .empty-state-text {
+          font-size: 1.125rem;
+          margin-bottom: 0.5rem;
         }
       `}</style>
 
-      <div className="container">
-        <div className="presence-indicator">
-          <span>👋 {userName}</span>
-          <div className="presence-divider"></div>
-          <WhosHere />
-          <div className="presence-divider"></div>
-          <Form method="post" action="/logout" style={{ display: 'inline' }}>
-            <button type="submit" className="logout-button">
-              Logout
-            </button>
-          </Form>
+      <div className="docs-container">
+        <div className="docs-header">
+          <h1 className="docs-title">Documents</h1>
+          <div className="user-info">
+            <span>👋 {userName}</span>
+            <Form method="post" action="/logout">
+              <button type="submit" className="logout-button">
+                Logout
+              </button>
+            </Form>
+          </div>
         </div>
 
-        <div className="title-editor">
-          {titleEditor && <EditorContent editor={titleEditor} />}
-        </div>
+        {loading ? (
+          <div className="loading">Loading documents...</div>
+        ) : (
+          <>
+            <div className="docs-grid">
+              <div
+                className="doc-card create-card"
+                onClick={handleCreateNew}
+                style={{
+                  opacity: creating ? 0.7 : 1,
+                  pointerEvents: creating ? "none" : "auto",
+                }}
+              >
+                <div className="create-icon">+</div>
+                <div className="create-text">
+                  {creating ? "Creating..." : "Create new"}
+                </div>
+              </div>
 
-        <div className="content-editor">
-          {contentEditor && <EditorContent editor={contentEditor} />}
-        </div>
+              {documents.map((doc) => (
+                <div
+                  key={doc.slug}
+                  className="doc-card"
+                  onClick={() => navigate(`/docs/${doc.slug}`)}
+                >
+                  <div className="doc-card-header">
+                    <div className="doc-icon">📄</div>
+                    <div className="doc-card-content">
+                      <div className="doc-title">{doc.title || "Untitled"}</div>
+                      {editingSlug === doc.slug ? (
+                        <div
+                          className="slug-edit-container"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="slug-input-wrapper">
+                            <input
+                              type="text"
+                              className="slug-input"
+                              value={newSlug}
+                              onChange={(e) => setNewSlug(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleSaveSlug(doc.slug, e as any);
+                                } else if (e.key === "Escape") {
+                                  handleCancelEdit();
+                                }
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              className="slug-button slug-save-btn"
+                              onClick={(e) => handleSaveSlug(doc.slug, e)}
+                              title="Save"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              className="slug-button slug-cancel-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelEdit();
+                              }}
+                              title="Cancel"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {slugError && (
+                            <div className="slug-error-text">{slugError}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="doc-slug">
+                          <span className="doc-slug-text">{doc.slug}</span>
+                          <button
+                            className="edit-slug-button"
+                            onClick={(e) => handleEditSlug(doc, e)}
+                            title="Edit slug"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="doc-preview">
+                    {getPreviewText(doc.content)}
+                  </div>
+                  <div className="doc-footer">
+                    Edited {formatDate(doc.updatedAt)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {documents.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-state-icon">📝</div>
+                <div className="empty-state-text">No documents yet</div>
+                <div>Click "Create new" to get started</div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </>
   );
