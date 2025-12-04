@@ -14,6 +14,7 @@
   "dependencies": {
     "@remix-run/css-bundle": "^2.11.2",
     "@remix-run/react": "^2.11.2",
+    "@tiptap/extension-bubble-menu": "^3.12.1",
     "@tiptap/extension-collaboration": "^2.2.4",
     "@tiptap/extension-document": "^2.27.1",
     "@tiptap/extension-paragraph": "^2.27.1",

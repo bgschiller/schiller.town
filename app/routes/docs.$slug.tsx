@@ -5,7 +5,7 @@ import type {
 } from "partymix";
 import { useLoaderData, Form, useNavigate } from "@remix-run/react";
 import WhosHere from "../components/whos-here";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
@@ -80,8 +80,10 @@ export default function DocPage() {
     useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const contentEditorRef = useRef<any>(null);
   const [ydoc, setYdoc] = useState<ReturnType<typeof getYDoc>>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isOrganizing, setIsOrganizing] = useState(false);
 
   // Initialize Y.Doc and provider only on the client
   // Use documentId for the collaboration room so slug changes don't break the connection
@@ -121,7 +123,7 @@ export default function DocPage() {
           // When Enter is pressed in title, focus the content editor instead
           if (event.key === "Enter") {
             event.preventDefault();
-            contentEditor?.commands.focus();
+            contentEditorRef.current?.commands.focus();
             return true;
           }
           return false;
@@ -137,7 +139,13 @@ export default function DocPage() {
       extensions:
         isClient && ydoc
           ? [
-              StarterKit.configure({ history: false }),
+              StarterKit.configure({
+                history: false,
+                bulletList: {
+                  keepMarks: true,
+                  keepAttributes: false,
+                },
+              }),
               Placeholder.configure({
                 placeholder: "Start writing...",
               }),
@@ -156,6 +164,177 @@ export default function DocPage() {
     },
     [isClient, ydoc, documentId]
   );
+
+  // Store contentEditor in ref so titleEditor can access it
+  useEffect(() => {
+    contentEditorRef.current = contentEditor;
+  }, [contentEditor]);
+
+  // Handler to organize selected list items
+  const handleOrganizeList = async () => {
+    if (!contentEditor) return;
+
+    setIsOrganizing(true);
+    try {
+      const { state } = contentEditor;
+      const { from, to } = state.selection;
+
+      // Extract list items from selection
+      // We collect all list items and flatten them
+      const items: string[] = [];
+      const seenItems = new Set<string>(); // Track items we've seen to avoid duplicates
+
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === "listItem") {
+          const text = node.textContent.trim();
+          // Create a unique key using position to avoid duplicate items
+          const key = `${pos}-${text}`;
+          if (text && !seenItems.has(key)) {
+            items.push(text);
+            seenItems.add(key);
+          }
+        }
+        return true; // Continue traversing
+      });
+
+      if (items.length === 0) {
+        alert("Please select list items to organize");
+        return;
+      }
+
+      // Call server to organize items
+      const isDevelopment =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "0.0.0.0" ||
+        window.location.hostname === "127.0.0.1";
+
+      const host = isDevelopment
+        ? `http://${window.location.hostname}:1999`
+        : `https://${partykitHost}`;
+
+      const response = await fetch(
+        `${host}/parties/documents/default/organize-list`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ items }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to organize list");
+      }
+
+      const { organized } = await response.json();
+
+      if (organized.length === 0) {
+        alert("No valid items to organize");
+        return;
+      }
+
+      // Filter out any empty items
+      const validItems = organized.filter(
+        (item: string) => item && item.trim().length > 0
+      );
+
+      // Build content with headings and lists
+      // Items starting with [ are group labels, others are list items
+      const content: any[] = [];
+      let currentGroup: any[] = [];
+
+      validItems.forEach((item: string) => {
+        const trimmed = item.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          // This is a group label - add previous list if any, then add heading
+          if (currentGroup.length > 0) {
+            content.push({
+              type: "bulletList",
+              content: currentGroup,
+            });
+            // Add empty paragraph after each list for proper spacing
+            content.push({
+              type: "paragraph",
+            });
+            currentGroup = [];
+          }
+          // Add heading
+          content.push({
+            type: "heading",
+            attrs: { level: 2 },
+            content: [{ type: "text", text: trimmed.slice(1, -1) }], // Remove [ and ]
+          });
+        } else {
+          // This is a list item
+          currentGroup.push({
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: trimmed }],
+              },
+            ],
+          });
+        }
+      });
+
+      // Add the last group if any
+      if (currentGroup.length > 0) {
+        content.push({
+          type: "bulletList",
+          content: currentGroup,
+        });
+        // Add empty paragraph at the end
+        content.push({
+          type: "paragraph",
+        });
+      }
+
+      // Replace the selection with organized content
+      // We need to ensure we're inserting at the block level, not inside a list
+      const { $from, $to } = state.selection;
+
+      // Find the depth of the outermost list in our selection
+      let listDepth = 0;
+      for (let d = $from.depth; d > 0; d--) {
+        const node = $from.node(d);
+        if (
+          node.type.name === "bulletList" ||
+          node.type.name === "orderedList"
+        ) {
+          listDepth = d;
+          break;
+        }
+      }
+
+      // If we're inside a list, expand selection to include the entire list structure
+      let deleteFrom = from;
+      let deleteTo = to;
+
+      if (listDepth > 0) {
+        const $listStart = state.doc.resolve($from.before(listDepth));
+        const $listEnd = state.doc.resolve(
+          $to.after(Math.min(listDepth, $to.depth))
+        );
+        deleteFrom = $listStart.pos;
+        deleteTo = $listEnd.pos;
+      }
+
+      // Delete the range and insert new content
+      contentEditor
+        .chain()
+        .focus()
+        .deleteRange({ from: deleteFrom, to: deleteTo })
+        .insertContentAt(deleteFrom, content)
+        .run();
+    } catch (error) {
+      console.error("Error organizing list:", error);
+      alert("Failed to organize list. Please try again.");
+    } finally {
+      setIsOrganizing(false);
+    }
+  };
 
   // Update document metadata when content changes
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -176,13 +355,18 @@ export default function DocPage() {
           ? `http://${window.location.hostname}:1999`
           : `https://${partykitHost}`;
 
-        await fetch(`${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ title, content }),
-        });
+        await fetch(
+          `${host}/parties/documents/default/documents/${encodeURIComponent(
+            slug
+          )}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ title, content }),
+          }
+        );
       } catch (error) {
         console.error("Failed to update document metadata:", error);
       }
@@ -465,6 +649,38 @@ export default function DocPage() {
           user-select: none;
           white-space: nowrap;
         }
+
+        /* Bubble menu styles */
+        .bubble-menu {
+          display: flex;
+          background-color: #0D0D0D;
+          padding: 0.25rem;
+          border-radius: 0.5rem;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .bubble-menu-button {
+          border: none;
+          background: none;
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 500;
+          padding: 0.5rem 0.75rem;
+          border-radius: 0.375rem;
+          cursor: pointer;
+          transition: background-color 0.15s;
+          font-family: inherit;
+          white-space: nowrap;
+        }
+
+        .bubble-menu-button:hover:not(:disabled) {
+          background-color: #2a2a2a;
+        }
+
+        .bubble-menu-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
       `}</style>
 
       <div className="container">
@@ -497,7 +713,41 @@ export default function DocPage() {
             </div>
 
             <div className="content-editor">
-              {contentEditor && <EditorContent editor={contentEditor} />}
+              {contentEditor && (
+                <>
+                  <BubbleMenu
+                    editor={contentEditor}
+                    tippyOptions={{ duration: 100 }}
+                    // @ts-expect-error - immediatelyRender is needed for SSR compatibility
+                    immediatelyRender={false}
+                    shouldShow={({ editor, state }) => {
+                      // Only show when selection includes list items
+                      const { from, to } = state.selection;
+                      let hasListItem = false;
+
+                      state.doc.nodesBetween(from, to, (node) => {
+                        if (node.type.name === "listItem") {
+                          hasListItem = true;
+                        }
+                      });
+
+                      // Show if we have list items and a selection
+                      return hasListItem && from !== to;
+                    }}
+                  >
+                    <div className="bubble-menu">
+                      <button
+                        onClick={handleOrganizeList}
+                        className="bubble-menu-button"
+                        disabled={isOrganizing}
+                      >
+                        {isOrganizing ? "⏳ Organizing..." : "🗂️ Organize List"}
+                      </button>
+                    </div>
+                  </BubbleMenu>
+                  <EditorContent editor={contentEditor} />
+                </>
+              )}
             </div>
           </>
         )}

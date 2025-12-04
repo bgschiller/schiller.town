@@ -38,15 +38,10 @@ function getProvider(room: string) {
     const doc = getYDoc();
     if (!doc || !awareness) return null;
 
-    provider = new YPartyKitProvider(
-      "http://localhost:1999",
-      room,
-      doc,
-      {
-        awareness,
-        party: "yjs",
-      }
-    );
+    provider = new YPartyKitProvider("http://localhost:1999", room, doc, {
+      awareness,
+      party: "yjs",
+    });
     currentRoom = room;
   }
   return provider;
