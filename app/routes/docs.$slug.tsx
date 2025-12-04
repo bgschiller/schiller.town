@@ -143,19 +143,33 @@ export default function DocPage() {
   return (
     <>
       <style>{`
+        body {
+          background: #f5f5f0;
+        }
+
         .container {
           min-height: 100vh;
-          max-width: var(--max-width);
+          background: white;
+          max-width: 50rem;
           margin: 0 auto;
-          padding: 3rem 2rem;
+          padding: 3rem 4rem;
           position: relative;
+          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (max-width: 768px) {
+          .container {
+            padding: 2rem 1.5rem;
+          }
         }
 
         .header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 2rem;
+          margin-bottom: 3rem;
+          padding-bottom: 1.5rem;
+          border-bottom: 1px solid #e5e5e5;
         }
 
         .back-button {
@@ -164,28 +178,29 @@ export default function DocPage() {
           color: #666;
           cursor: pointer;
           font-size: 0.875rem;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.75rem;
           font-weight: 500;
           text-decoration: none;
           font-family: inherit;
           border-radius: 0.375rem;
-          transition: all 0.2s;
+          transition: all 0.15s;
         }
 
         .back-button:hover {
-          background: #f5f5f5;
+          background: #f5f5f0;
           color: #1a1a1a;
         }
 
         .presence-indicator {
-          font-size: 0.875rem;
+          font-size: 0.8125rem;
           color: #666;
-          background: #f5f5f5;
+          background: #fafaf8;
           padding: 0.5rem 1rem;
-          border-radius: 2rem;
+          border-radius: 1.5rem;
           display: flex;
           align-items: center;
           gap: 0.75rem;
+          border: 1px solid #e5e5e5;
         }
 
         .presence-divider {
@@ -228,11 +243,13 @@ export default function DocPage() {
         }
 
         .title-editor .ProseMirror {
-          font-size: 3rem;
-          font-weight: 700;
-          line-height: 1.2;
-          margin-bottom: 1.5rem;
+          font-size: 2.5rem;
+          font-weight: 600;
+          line-height: 1.25;
+          margin-bottom: 2rem;
           outline: none;
+          color: #1a1a1a;
+          letter-spacing: -0.025em;
         }
 
         .title-editor .ProseMirror p {
@@ -241,7 +258,7 @@ export default function DocPage() {
 
         .title-editor .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
-          color: #d1d5db;
+          color: #c4c4c4;
           pointer-events: none;
           height: 0;
           float: left;
@@ -253,75 +270,92 @@ export default function DocPage() {
         }
 
         .content-editor .ProseMirror {
-          font-size: 1.125rem;
-          line-height: 1.75;
-          color: #374151;
+          font-size: 1.0625rem;
+          line-height: 1.7;
+          color: #2e2e2e;
           outline: none;
           min-height: 60vh;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         .content-editor .ProseMirror p {
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
         }
 
         .content-editor .ProseMirror h1 {
-          font-size: 2rem;
-          font-weight: 700;
-          margin-top: 2rem;
+          font-size: 1.875rem;
+          font-weight: 600;
+          margin-top: 2.5rem;
           margin-bottom: 1rem;
+          color: #1a1a1a;
+          letter-spacing: -0.025em;
         }
 
         .content-editor .ProseMirror h2 {
           font-size: 1.5rem;
           font-weight: 600;
-          margin-top: 1.5rem;
+          margin-top: 2rem;
           margin-bottom: 0.75rem;
+          color: #1a1a1a;
+          letter-spacing: -0.02em;
         }
 
         .content-editor .ProseMirror h3 {
           font-size: 1.25rem;
           font-weight: 600;
-          margin-top: 1.25rem;
+          margin-top: 1.5rem;
           margin-bottom: 0.5rem;
+          color: #1a1a1a;
+          letter-spacing: -0.015em;
         }
 
         .content-editor .ProseMirror ul,
         .content-editor .ProseMirror ol {
           padding-left: 1.5rem;
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
         }
 
         .content-editor .ProseMirror li {
-          margin-bottom: 0.1rem;
+          margin-bottom: 0.375rem;
         }
 
         .content-editor .ProseMirror li p {
           margin-bottom: 0;
         }
 
+        .content-editor .ProseMirror ul {
+          list-style-type: disc;
+        }
+
+        .content-editor .ProseMirror ul ul {
+          list-style-type: circle;
+        }
+
         .content-editor .ProseMirror blockquote {
-          border-left: 3px solid #e5e7eb;
+          border-left: 3px solid #d1d1d1;
           padding-left: 1rem;
           margin-left: 0;
-          margin-bottom: 1rem;
-          color: #6b7280;
+          margin-bottom: 1.25rem;
+          color: #5a5a5a;
+          font-style: italic;
         }
 
         .content-editor .ProseMirror code {
-          background: #f3f4f6;
-          padding: 0.125rem 0.25rem;
+          background: #f5f5f0;
+          padding: 0.125rem 0.375rem;
           border-radius: 0.25rem;
-          font-family: 'Monaco', 'Courier New', monospace;
-          font-size: 0.875em;
+          font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+          font-size: 0.9em;
+          color: #1a1a1a;
         }
 
         .content-editor .ProseMirror pre {
-          background: #1f2937;
-          color: #f9fafb;
-          padding: 1rem;
+          background: #2a2a2a;
+          color: #f5f5f0;
+          padding: 1.25rem;
           border-radius: 0.5rem;
           overflow-x: auto;
-          margin-bottom: 1rem;
+          margin-bottom: 1.25rem;
         }
 
         .content-editor .ProseMirror pre code {
@@ -332,7 +366,7 @@ export default function DocPage() {
 
         .content-editor .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
-          color: #d1d5db;
+          color: #c4c4c4;
           pointer-events: none;
           height: 0;
           float: left;
