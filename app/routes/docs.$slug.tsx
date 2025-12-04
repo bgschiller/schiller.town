@@ -11,9 +11,13 @@ import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
 import Paragraph from "@tiptap/extension-paragraph";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Collaboration, ydoc } from "~/utils/collaboration.client";
+import {
+  Collaboration,
+  getYDoc,
+  getProvider,
+} from "~/utils/collaboration.client";
 import { requireAuth } from "~/utils/session.server";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare const PARTYKIT_HOST: string;
 
@@ -50,44 +54,72 @@ export default function DocPage() {
   const { userName, slug, partykitHost } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [ydoc, setYdoc] = useState<ReturnType<typeof getYDoc>>(null);
+  const [isClient, setIsClient] = useState(false);
 
-  const titleEditor = useEditor({
-    extensions: [
-      Document,
-      Paragraph,
-      Text,
-      Placeholder.configure({
-        placeholder: "Untitled",
-      }),
-      Collaboration.configure({
-        document: ydoc,
-        field: `${slug}-title`,
-      }),
-    ],
-    editorProps: {
-      attributes: {
-        class: "title-editor",
-      },
-    },
-  });
+  // Initialize Y.Doc and provider only on the client
+  useEffect(() => {
+    setIsClient(true);
+    const doc = getYDoc();
+    const provider = getProvider(slug);
+    if (doc && provider) {
+      setYdoc(doc);
+    }
+  }, [slug]);
 
-  const contentEditor = useEditor({
-    extensions: [
-      StarterKit.configure({ history: false }),
-      Placeholder.configure({
-        placeholder: "Start writing...",
-      }),
-      Collaboration.configure({
-        document: ydoc,
-        field: `${slug}-content`,
-      }),
-    ],
-    editorProps: {
-      attributes: {
-        class: "content-editor",
+  // Only create editors on the client when ydoc is ready
+  // For SSR, provide minimal extensions to avoid schema errors
+  const titleEditor = useEditor(
+    {
+      extensions:
+        isClient && ydoc
+          ? [
+              Document,
+              Paragraph,
+              Text,
+              Placeholder.configure({
+                placeholder: "Untitled",
+              }),
+              Collaboration.configure({
+                document: ydoc,
+                field: `${slug}-title`,
+              }),
+            ]
+          : [Document, Paragraph, Text],
+      editorProps: {
+        attributes: {
+          class: "title-editor",
+        },
       },
+      editable: isClient && !!ydoc,
     },
-  });
+    [isClient, ydoc, slug]
+  );
+
+  const contentEditor = useEditor(
+    {
+      extensions:
+        isClient && ydoc
+          ? [
+              StarterKit.configure({ history: false }),
+              Placeholder.configure({
+                placeholder: "Start writing...",
+              }),
+              Collaboration.configure({
+                document: ydoc,
+                field: `${slug}-content`,
+              }),
+            ]
+          : [StarterKit],
+      editorProps: {
+        attributes: {
+          class: "content-editor",
+        },
+      },
+      editable: isClient && !!ydoc,
+    },
+    [isClient, ydoc, slug]
+  );
 
   // Update document metadata when content changes
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -418,13 +450,21 @@ export default function DocPage() {
           </div>
         </div>
 
-        <div className="title-editor">
-          {titleEditor && <EditorContent editor={titleEditor} />}
-        </div>
+        {!isClient || !ydoc ? (
+          <div style={{ padding: "2rem", color: "#666", textAlign: "center" }}>
+            Loading editor...
+          </div>
+        ) : (
+          <>
+            <div className="title-editor">
+              {titleEditor && <EditorContent editor={titleEditor} />}
+            </div>
 
-        <div className="content-editor">
-          {contentEditor && <EditorContent editor={contentEditor} />}
-        </div>
+            <div className="content-editor">
+              {contentEditor && <EditorContent editor={contentEditor} />}
+            </div>
+          </>
+        )}
       </div>
     </>
   );
