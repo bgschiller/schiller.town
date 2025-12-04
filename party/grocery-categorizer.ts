@@ -873,6 +873,7 @@ const DEPARTMENTS: Department[] = [
       "kind bar",
       "nature valley",
       "nutri-grain",
+      "fiber bar",
       "trail mix",
       "mixed nuts",
       "peanuts",

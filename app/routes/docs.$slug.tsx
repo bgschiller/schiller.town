@@ -315,6 +315,104 @@ export default function DocPage() {
     }
   };
 
+  // Handler to remove headings and flatten all items into one list
+  const handleFlattenList = () => {
+    if (!contentEditor) return;
+
+    try {
+      const { state } = contentEditor;
+      const { from, to } = state.selection;
+
+      // Extract all list items, ignoring headings
+      const items: string[] = [];
+      const seenTexts = new Set<string>(); // Track to avoid duplicates
+
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === "listItem") {
+          const text = node.textContent.trim();
+          if (text && !seenTexts.has(text)) {
+            items.push(text);
+            seenTexts.add(text);
+          }
+        }
+        return true; // Continue traversing
+      });
+
+      if (items.length === 0) {
+        alert("Please select list items to flatten");
+        return;
+      }
+
+      // Build a single flat bullet list
+      const content = [
+        {
+          type: "bulletList",
+          content: items.map((item) => ({
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: item }],
+              },
+            ],
+          })),
+        },
+      ];
+
+      // Find the selection range to replace
+      const { $from, $to } = state.selection;
+
+      // Find the depth of the outermost structure (heading or list)
+      let blockDepth = 0;
+      for (let d = $from.depth; d > 0; d--) {
+        const node = $from.node(d);
+        if (
+          node.type.name === "bulletList" ||
+          node.type.name === "orderedList" ||
+          node.type.name === "heading"
+        ) {
+          blockDepth = d;
+          break;
+        }
+      }
+
+      // Expand selection to include entire block structures
+      let deleteFrom = from;
+      let deleteTo = to;
+
+      if (blockDepth > 0) {
+        // Start from the beginning of the first block
+        deleteFrom = $from.before(blockDepth);
+
+        // Find the end position by looking for the last block in selection
+        let endDepth = blockDepth;
+        for (let d = $to.depth; d > 0; d--) {
+          const node = $to.node(d);
+          if (
+            node.type.name === "bulletList" ||
+            node.type.name === "orderedList" ||
+            node.type.name === "heading"
+          ) {
+            endDepth = d;
+            break;
+          }
+        }
+        deleteTo = $to.after(Math.min(endDepth, $to.depth));
+      }
+
+      // Replace with flattened list
+      contentEditor
+        .chain()
+        .focus()
+        .deleteRange({ from: deleteFrom, to: deleteTo })
+        .insertContentAt(deleteFrom, content)
+        .run();
+    } catch (error) {
+      console.error("Error flattening list:", error);
+      alert("Failed to flatten list. Please try again.");
+    }
+  };
+
   // Update document metadata when content changes
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -728,6 +826,13 @@ export default function DocPage() {
                         disabled={isOrganizing}
                       >
                         {isOrganizing ? "⏳ Organizing..." : "🗂️ Organize List"}
+                      </button>
+                      <button
+                        onClick={handleFlattenList}
+                        className="bubble-menu-button"
+                        disabled={isOrganizing}
+                      >
+                        📋 Flatten List
                       </button>
                     </div>
                   </BubbleMenu>
