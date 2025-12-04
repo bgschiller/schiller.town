@@ -43,14 +43,8 @@ export default function ArchivedDocuments() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const isDevelopment =
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "0.0.0.0" ||
-          window.location.hostname === "127.0.0.1";
-
-        const host = isDevelopment
-          ? `http://${window.location.hostname}:1999`
-          : `https://${partykitHost}`;
+        // Always use current origin - works locally and through Cloudflare tunnel
+        const host = window.location.origin;
 
         const response = await fetch(
           `${host}/parties/documents/default/documents?archived=true`
@@ -67,7 +61,7 @@ export default function ArchivedDocuments() {
     };
 
     fetchDocuments();
-  }, [partykitHost]);
+  }, []);
 
   const getPreviewText = (content: string) => {
     if (!content) return "No content yet...";
@@ -109,14 +103,8 @@ export default function ArchivedDocuments() {
     }
 
     try {
-      const isDevelopment =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "0.0.0.0" ||
-        window.location.hostname === "127.0.0.1";
-
-      const host = isDevelopment
-        ? `http://${window.location.hostname}:1999`
-        : `https://${partykitHost}`;
+      // Always use current origin - works locally and through Cloudflare tunnel
+      const host = window.location.origin;
 
       const response = await fetch(
         `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/restore`,
@@ -149,14 +137,8 @@ export default function ArchivedDocuments() {
     }
 
     try {
-      const isDevelopment =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "0.0.0.0" ||
-        window.location.hostname === "127.0.0.1";
-
-      const host = isDevelopment
-        ? `http://${window.location.hostname}:1999`
-        : `https://${partykitHost}`;
+      // Always use current origin - works locally and through Cloudflare tunnel
+      const host = window.location.origin;
 
       const response = await fetch(
         `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}`,

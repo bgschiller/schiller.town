@@ -13,10 +13,15 @@ export default function WhosHere({ room = "index" }: { room?: string }) {
   const userName = loaderData?.userName;
   const [users, setUsers] = useState<State | undefined>();
 
-  // Use localhost in development, otherwise use the provided host
+  // Use localhost in development, otherwise use the current origin
+  // Handle special cases like 0.0.0.0 which won't work for client connections
   const host =
-    typeof window !== "undefined" && window.location.hostname === "localhost"
-      ? "localhost:1999"
+    typeof window !== "undefined"
+      ? window.location.hostname === "localhost" ||
+        window.location.hostname === "0.0.0.0" ||
+        window.location.hostname === "127.0.0.1"
+        ? "localhost:1999"
+        : window.location.origin
       : loaderData?.partykitHost;
 
   usePartySocket({
@@ -40,8 +45,8 @@ export default function WhosHere({ room = "index" }: { room?: string }) {
 
   return !users ? (
     <>
-      <span className="online-dot" style={{ opacity: 0.5 }}></span>
-      Connecting...
+      <span className="online-dot" style={{ opacity: 0.5, flexShrink: 0 }}></span>
+      <span style={{ whiteSpace: "nowrap" }}>Connecting...</span>
     </>
   ) : (
     <span
@@ -52,8 +57,8 @@ export default function WhosHere({ room = "index" }: { room?: string }) {
         gap: "0.5rem",
       }}
     >
-      <span className="online-dot"></span>
-      {users.total} online
+      <span className="online-dot" style={{ flexShrink: 0 }}></span>
+      <span style={{ whiteSpace: "nowrap" }}>{users.total} online</span>
     </span>
   );
 }

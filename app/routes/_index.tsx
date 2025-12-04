@@ -44,15 +44,9 @@ export const action: ActionFunction = async function ({ request }) {
     const slug = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      // Use localhost in development (server-side fetch needs localhost, not 0.0.0.0)
-      const isDevelopment =
-        request.headers.get("host")?.includes("localhost") ||
-        request.headers.get("host")?.includes("0.0.0.0") ||
-        request.headers.get("host")?.includes("127.0.0.1");
-
-      const host = isDevelopment
-        ? "http://127.0.0.1:1999"
-        : `https://${PARTYKIT_HOST}`;
+      // Always use the current request's origin - works locally and through Cloudflare tunnel
+      const url = new URL(request.url);
+      const host = `${url.protocol}//${url.host}`;
 
       const response = await fetch(
         `${host}/parties/documents/default/documents`,
@@ -98,14 +92,8 @@ export default function Index() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const isDevelopment =
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "0.0.0.0" ||
-          window.location.hostname === "127.0.0.1";
-
-        const host = isDevelopment
-          ? `http://${window.location.hostname}:1999`
-          : `https://${partykitHost}`;
+        // Always use current origin - works locally and through Cloudflare tunnel
+        const host = window.location.origin;
 
         const response = await fetch(
           `${host}/parties/documents/default/documents`
@@ -122,7 +110,7 @@ export default function Index() {
     };
 
     fetchDocuments();
-  }, [partykitHost]);
+  }, []);
 
   // Handle navigation when document creation is complete
   useEffect(() => {
@@ -207,14 +195,8 @@ export default function Index() {
     }
 
     try {
-      const isDevelopment =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "0.0.0.0" ||
-        window.location.hostname === "127.0.0.1";
-
-      const host = isDevelopment
-        ? `http://${window.location.hostname}:1999`
-        : `https://${partykitHost}`;
+      // Always use current origin - works locally and through Cloudflare tunnel
+      const host = window.location.origin;
 
       const response = await fetch(
         `${host}/parties/documents/default/documents/${encodeURIComponent(oldSlug)}`,
@@ -254,14 +236,8 @@ export default function Index() {
     }
 
     try {
-      const isDevelopment =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "0.0.0.0" ||
-        window.location.hostname === "127.0.0.1";
-
-      const host = isDevelopment
-        ? `http://${window.location.hostname}:1999`
-        : `https://${partykitHost}`;
+      // Always use current origin - works locally and through Cloudflare tunnel
+      const host = window.location.origin;
 
       const response = await fetch(
         `${host}/parties/documents/default/documents/${encodeURIComponent(slug)}/archive`,

@@ -44,14 +44,9 @@ export const loader: LoaderFunction = async function ({
   }
 
   // Fetch the document to get its ID
-  const isDevelopment =
-    request.headers.get("host")?.includes("localhost") ||
-    request.headers.get("host")?.includes("0.0.0.0") ||
-    request.headers.get("host")?.includes("127.0.0.1");
-
-  const host = isDevelopment
-    ? "http://127.0.0.1:1999"
-    : `https://${PARTYKIT_HOST}`;
+  // Always use the current request's origin - works locally and through Cloudflare tunnel
+  const url = new URL(request.url);
+  const host = `${url.protocol}//${url.host}`;
 
   try {
     const response = await fetch(
@@ -203,14 +198,7 @@ export default function DocPage() {
       }
 
       // Call server to organize items
-      const isDevelopment =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "0.0.0.0" ||
-        window.location.hostname === "127.0.0.1";
-
-      const host = isDevelopment
-        ? `http://${window.location.hostname}:1999`
-        : `https://${partykitHost}`;
+      const host = window.location.origin;
 
       const response = await fetch(
         `${host}/parties/documents/default/organize-list`,
@@ -253,10 +241,6 @@ export default function DocPage() {
               type: "bulletList",
               content: currentGroup,
             });
-            // Add empty paragraph after each list for proper spacing
-            content.push({
-              type: "paragraph",
-            });
             currentGroup = [];
           }
           // Add heading
@@ -284,10 +268,6 @@ export default function DocPage() {
         content.push({
           type: "bulletList",
           content: currentGroup,
-        });
-        // Add empty paragraph at the end
-        content.push({
-          type: "paragraph",
         });
       }
 
@@ -346,14 +326,7 @@ export default function DocPage() {
       const content = contentEditor.getText();
 
       try {
-        const isDevelopment =
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "0.0.0.0" ||
-          window.location.hostname === "127.0.0.1";
-
-        const host = isDevelopment
-          ? `http://${window.location.hostname}:1999`
-          : `https://${partykitHost}`;
+        const host = window.location.origin;
 
         await fetch(
           `${host}/parties/documents/default/documents/${encodeURIComponent(
@@ -422,6 +395,15 @@ export default function DocPage() {
           margin-bottom: 3rem;
           padding-bottom: 1.5rem;
           border-bottom: 1px solid #e5e5e5;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+          .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+          }
         }
 
         .back-button {
@@ -453,6 +435,15 @@ export default function DocPage() {
           align-items: center;
           gap: 0.75rem;
           border: 1px solid #e5e5e5;
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+          .presence-indicator {
+            padding: 0.5rem 0.75rem;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+          }
         }
 
         .presence-divider {
@@ -487,6 +478,7 @@ export default function DocPage() {
           background: #10b981;
           border-radius: 50%;
           display: inline-block;
+          flex-shrink: 0;
         }
 
         .title-editor {
