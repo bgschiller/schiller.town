@@ -17,6 +17,7 @@ export const meta: MetaFunction = () => {
 };
 
 type Document = {
+  id: string;
   slug: string;
   title: string;
   content: string;

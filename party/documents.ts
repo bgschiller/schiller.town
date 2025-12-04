@@ -1,6 +1,7 @@
 import type * as Party from "partykit/server";
 
 export type Document = {
+  id: string; // Stable identifier for the document
   slug: string;
   title: string;
   content: string;
@@ -34,9 +35,17 @@ export default class DocumentsServer implements Party.Server {
         return new Response("Not found", { status: 404 });
       }
 
-      const doc = await this.party.storage.get<Document>(slug);
+      let doc = await this.party.storage.get<Document>(slug);
       if (!doc) {
         return new Response("Not found", { status: 404 });
+      }
+
+      // Migration: Add ID to documents that don't have one
+      if (!doc.id) {
+        const now = Date.now();
+        const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
+        doc = { ...doc, id };
+        await this.party.storage.put(slug, doc);
       }
 
       return Response.json(doc);
@@ -47,7 +56,11 @@ export default class DocumentsServer implements Party.Server {
       const body = (await request.json()) as { slug: string; title?: string };
       const now = Date.now();
 
+      // Generate a unique ID for the document
+      const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
+
       const doc: Document = {
+        id,
         slug: body.slug,
         title: body.title || "Untitled",
         content: "",
@@ -76,6 +89,7 @@ export default class DocumentsServer implements Party.Server {
       const updatedDoc: Document = {
         ...doc,
         ...updates,
+        id: doc.id, // Don't allow changing the ID
         slug: doc.slug, // Don't allow changing the slug
         updatedAt: Date.now(),
       };
@@ -115,9 +129,10 @@ export default class DocumentsServer implements Party.Server {
         });
       }
 
-      // Create updated document with new slug
+      // Create updated document with new slug (preserving ID for collaboration)
       const updatedDoc: Document = {
         ...doc,
+        id: doc.id, // Keep the same ID so collaboration data remains connected
         slug: newSlug,
         updatedAt: Date.now(),
       };
@@ -203,15 +218,29 @@ export default class DocumentsServer implements Party.Server {
     showArchived: boolean = false
   ): Promise<Document[]> {
     const docs: Document[] = [];
+    const updates: Promise<void>[] = [];
+
     await this.party.storage.list().then((entries) => {
-      for (const [, value] of entries) {
-        const doc = value as Document;
+      for (const [key, value] of entries) {
+        let doc = value as Document;
+
+        // Migration: Add ID to documents that don't have one
+        if (!doc.id) {
+          const now = Date.now();
+          const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
+          doc = { ...doc, id };
+          updates.push(this.party.storage.put(key as string, doc));
+        }
+
         // Filter by archived status
         if (showArchived ? doc.archived : !doc.archived) {
           docs.push(doc);
         }
       }
     });
+
+    // Wait for all migrations to complete
+    await Promise.all(updates);
 
     // Sort by updatedAt descending
     return docs.sort((a, b) => b.updatedAt - a.updatedAt);

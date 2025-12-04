@@ -43,29 +43,56 @@ export const loader: LoaderFunction = async function ({
     throw new Response("Not Found", { status: 404 });
   }
 
-  return Response.json({
-    partykitHost: PARTYKIT_HOST,
-    userName,
-    slug,
-  });
+  // Fetch the document to get its ID
+  const isDevelopment =
+    request.headers.get("host")?.includes("localhost") ||
+    request.headers.get("host")?.includes("0.0.0.0") ||
+    request.headers.get("host")?.includes("127.0.0.1");
+
+  const host = isDevelopment
+    ? "http://127.0.0.1:1999"
+    : `https://${PARTYKIT_HOST}`;
+
+  try {
+    const response = await fetch(
+      `${host}/parties/documents/default/documents/${slug}`
+    );
+
+    if (!response.ok) {
+      throw new Response("Document Not Found", { status: 404 });
+    }
+
+    const document = await response.json();
+
+    return Response.json({
+      partykitHost: PARTYKIT_HOST,
+      userName,
+      slug,
+      documentId: document.id,
+    });
+  } catch (error) {
+    throw new Response("Document Not Found", { status: 404 });
+  }
 };
 
 export default function DocPage() {
-  const { userName, slug, partykitHost } = useLoaderData<typeof loader>();
+  const { userName, slug, partykitHost, documentId } =
+    useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [ydoc, setYdoc] = useState<ReturnType<typeof getYDoc>>(null);
   const [isClient, setIsClient] = useState(false);
 
   // Initialize Y.Doc and provider only on the client
+  // Use documentId for the collaboration room so slug changes don't break the connection
   useEffect(() => {
     setIsClient(true);
     const doc = getYDoc();
-    const provider = getProvider(slug);
+    const provider = getProvider(documentId);
     if (doc && provider) {
       setYdoc(doc);
     }
-  }, [slug]);
+  }, [documentId]);
 
   // Only create editors on the client when ydoc is ready
   // For SSR, provide minimal extensions to avoid schema errors
@@ -82,7 +109,7 @@ export default function DocPage() {
               }),
               Collaboration.configure({
                 document: ydoc,
-                field: `${slug}-title`,
+                field: `${documentId}-title`,
               }),
             ]
           : [Document, Paragraph, Text],
@@ -90,10 +117,19 @@ export default function DocPage() {
         attributes: {
           class: "title-editor",
         },
+        handleKeyDown: (view, event) => {
+          // When Enter is pressed in title, focus the content editor instead
+          if (event.key === "Enter") {
+            event.preventDefault();
+            contentEditor?.commands.focus();
+            return true;
+          }
+          return false;
+        },
       },
       editable: isClient && !!ydoc,
     },
-    [isClient, ydoc, slug]
+    [isClient, ydoc, documentId]
   );
 
   const contentEditor = useEditor(
@@ -107,7 +143,7 @@ export default function DocPage() {
               }),
               Collaboration.configure({
                 document: ydoc,
-                field: `${slug}-content`,
+                field: `${documentId}-content`,
               }),
             ]
           : [StarterKit],
@@ -118,7 +154,7 @@ export default function DocPage() {
       },
       editable: isClient && !!ydoc,
     },
-    [isClient, ydoc, slug]
+    [isClient, ydoc, documentId]
   );
 
   // Update document metadata when content changes
@@ -440,7 +476,7 @@ export default function DocPage() {
           <div className="presence-indicator">
             <span>👋 {userName}</span>
             <div className="presence-divider"></div>
-            <WhosHere room={slug} />
+            <WhosHere room={documentId} />
             <div className="presence-divider"></div>
             <Form method="post" action="/logout" style={{ display: "inline" }}>
               <button type="submit" className="logout-button">
