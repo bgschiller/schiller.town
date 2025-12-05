@@ -256,8 +256,8 @@ export default function DocPage() {
       // Call Remix API route to organize items
       // Normalize 0.0.0.0 to localhost for client connections
       let host = window.location.origin;
-      if (host.includes('0.0.0.0')) {
-        host = host.replace('0.0.0.0', 'localhost');
+      if (host.includes("0.0.0.0")) {
+        host = host.replace("0.0.0.0", "localhost");
       }
       const response = await fetch(`${host}/api/organize-list`, {
         method: "POST",
@@ -483,8 +483,8 @@ export default function DocPage() {
         // Call Remix API route
         // Normalize 0.0.0.0 to localhost for client connections
         let host = window.location.origin;
-        if (host.includes('0.0.0.0')) {
-          host = host.replace('0.0.0.0', 'localhost');
+        if (host.includes("0.0.0.0")) {
+          host = host.replace("0.0.0.0", "localhost");
         }
         await fetch(`${host}/api/documents/${encodeURIComponent(slug)}`, {
           method: "PUT",

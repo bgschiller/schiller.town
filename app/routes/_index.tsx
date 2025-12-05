@@ -92,8 +92,8 @@ export default function Index() {
         // Call Remix API route
         // Normalize 0.0.0.0 to localhost for client connections
         let host = window.location.origin;
-        if (host.includes('0.0.0.0')) {
-          host = host.replace('0.0.0.0', 'localhost');
+        if (host.includes("0.0.0.0")) {
+          host = host.replace("0.0.0.0", "localhost");
         }
         const response = await fetch(`${host}/api/documents`);
 
@@ -203,8 +203,8 @@ export default function Index() {
       // Call Remix API route
       // Normalize 0.0.0.0 to localhost for client connections
       let host = window.location.origin;
-      if (host.includes('0.0.0.0')) {
-        host = host.replace('0.0.0.0', 'localhost');
+      if (host.includes("0.0.0.0")) {
+        host = host.replace("0.0.0.0", "localhost");
       }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(oldSlug)}`,
@@ -247,8 +247,8 @@ export default function Index() {
       // Call Remix API route
       // Normalize 0.0.0.0 to localhost for client connections
       let host = window.location.origin;
-      if (host.includes('0.0.0.0')) {
-        host = host.replace('0.0.0.0', 'localhost');
+      if (host.includes("0.0.0.0")) {
+        host = host.replace("0.0.0.0", "localhost");
       }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(slug)}/archive`,
@@ -271,7 +271,9 @@ export default function Index() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .docs-container {
           min-height: 100vh;
           background: #f9fafb;
@@ -575,7 +577,9 @@ export default function Index() {
           font-size: 1.125rem;
           margin-bottom: 0.5rem;
         }
-      ` }} />
+      `,
+        }}
+      />
 
       <div className="docs-container">
         <div className="docs-header">

@@ -42,8 +42,8 @@ function getProvider(room: string) {
     // This works both locally and through Cloudflare tunnel
     // Normalize 0.0.0.0 to localhost for client connections
     let host = window.location.origin;
-    if (host.includes('0.0.0.0')) {
-      host = host.replace('0.0.0.0', 'localhost');
+    if (host.includes("0.0.0.0")) {
+      host = host.replace("0.0.0.0", "localhost");
     }
 
     provider = new YPartyKitProvider(host, room, doc, {
