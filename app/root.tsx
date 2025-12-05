@@ -21,7 +21,7 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
-        <style>{`
+        <style dangerouslySetInnerHTML={{ __html: `
           * {
             margin: 0;
             padding: 0;
@@ -40,7 +40,7 @@ export default function App() {
           :root {
             --max-width: 800px;
           }
-        `}</style>
+        ` }} />
       </head>
       <body>
         <Outlet />

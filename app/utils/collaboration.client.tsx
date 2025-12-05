@@ -40,7 +40,11 @@ function getProvider(room: string) {
 
     // Use current origin for PartyKit connection
     // This works both locally and through Cloudflare tunnel
-    const host = window.location.origin;
+    // Normalize 0.0.0.0 to localhost for client connections
+    let host = window.location.origin;
+    if (host.includes('0.0.0.0')) {
+      host = host.replace('0.0.0.0', 'localhost');
+    }
 
     provider = new YPartyKitProvider(host, room, doc, {
       awareness,

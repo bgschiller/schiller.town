@@ -56,6 +56,19 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    // Check if slug already exists
+    const checkUrl = getStorageUrl(
+      request,
+      `/storage-get-by-slug/${encodeURIComponent(body.slug)}`
+    );
+    const checkResponse = await fetch(checkUrl);
+    if (checkResponse.ok) {
+      return json(
+        { error: "A document with this slug already exists" },
+        { status: 409 }
+      );
+    }
+
     const now = Date.now();
     const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -69,12 +82,12 @@ export async function action({ request }: ActionFunctionArgs) {
       archived: false,
     };
 
-    // Store in PartyKit
+    // Store in PartyKit (storage key is doc.id)
     const storageUrl = getStorageUrl(request, `/storage-put`);
     const response = await fetch(storageUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: doc.slug, value: doc }),
+      body: JSON.stringify({ value: doc }),
     });
 
     if (!response.ok) {

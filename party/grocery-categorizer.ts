@@ -924,7 +924,8 @@ const DEPARTMENTS: Department[] = [
       "juicy fruit",
       "doublemint",
 
-      // beans
+      // Beans
+      "beans",
       "black beans",
       "kidney beans",
       "pinto beans",
@@ -932,6 +933,11 @@ const DEPARTMENTS: Department[] = [
       "garbanzo beans",
       "navy beans",
       "cannellini beans",
+      "lentils",
+
+      // Tortillas & flatbreads
+      "tortilla",
+      "tortillas",
     ],
   },
   {

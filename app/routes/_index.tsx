@@ -90,7 +90,11 @@ export default function Index() {
     const fetchDocuments = async () => {
       try {
         // Call Remix API route
-        const host = window.location.origin;
+        // Normalize 0.0.0.0 to localhost for client connections
+        let host = window.location.origin;
+        if (host.includes('0.0.0.0')) {
+          host = host.replace('0.0.0.0', 'localhost');
+        }
         const response = await fetch(`${host}/api/documents`);
 
         if (response.ok) {
@@ -197,7 +201,11 @@ export default function Index() {
 
     try {
       // Call Remix API route
-      const host = window.location.origin;
+      // Normalize 0.0.0.0 to localhost for client connections
+      let host = window.location.origin;
+      if (host.includes('0.0.0.0')) {
+        host = host.replace('0.0.0.0', 'localhost');
+      }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(oldSlug)}`,
         {
@@ -237,7 +245,11 @@ export default function Index() {
 
     try {
       // Call Remix API route
-      const host = window.location.origin;
+      // Normalize 0.0.0.0 to localhost for client connections
+      let host = window.location.origin;
+      if (host.includes('0.0.0.0')) {
+        host = host.replace('0.0.0.0', 'localhost');
+      }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(slug)}/archive`,
         {
@@ -259,7 +271,7 @@ export default function Index() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .docs-container {
           min-height: 100vh;
           background: #f9fafb;
@@ -563,7 +575,7 @@ export default function Index() {
           font-size: 1.125rem;
           margin-bottom: 0.5rem;
         }
-      `}</style>
+      ` }} />
 
       <div className="docs-container">
         <div className="docs-header">
@@ -604,7 +616,7 @@ export default function Index() {
 
               {documents.map((doc) => (
                 <div
-                  key={doc.slug}
+                  key={doc.id}
                   className="doc-card"
                   onClick={() => navigate(`/docs/${doc.slug}`)}
                 >

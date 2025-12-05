@@ -44,7 +44,11 @@ export default function ArchivedDocuments() {
     const fetchDocuments = async () => {
       try {
         // Call Remix API route
-        const host = window.location.origin;
+        // Normalize 0.0.0.0 to localhost for client connections
+        let host = window.location.origin;
+        if (host.includes('0.0.0.0')) {
+          host = host.replace('0.0.0.0', 'localhost');
+        }
         const response = await fetch(`${host}/api/documents?archived=true`);
 
         if (response.ok) {
@@ -102,7 +106,11 @@ export default function ArchivedDocuments() {
 
     try {
       // Call Remix API route
-      const host = window.location.origin;
+      // Normalize 0.0.0.0 to localhost for client connections
+      let host = window.location.origin;
+      if (host.includes('0.0.0.0')) {
+        host = host.replace('0.0.0.0', 'localhost');
+      }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(slug)}/restore`,
         {
@@ -135,7 +143,11 @@ export default function ArchivedDocuments() {
 
     try {
       // Call Remix API route
-      const host = window.location.origin;
+      // Normalize 0.0.0.0 to localhost for client connections
+      let host = window.location.origin;
+      if (host.includes('0.0.0.0')) {
+        host = host.replace('0.0.0.0', 'localhost');
+      }
       const response = await fetch(
         `${host}/api/documents/${encodeURIComponent(slug)}`,
         {

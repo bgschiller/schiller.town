@@ -13,11 +13,13 @@ export type Document = {
 /**
  * Simplified DocumentsServer that only provides low-level storage operations.
  * All HTTP request handling and business logic has been moved to Remix routes.
+ * Storage keys use document `id` (not slug) for atomic renames.
  * This server now only handles direct storage operations:
  * - storage-list: List all documents from storage
- * - storage-get: Get a specific document by slug
- * - storage-put: Create or update a document
- * - storage-delete: Delete a document by slug
+ * - storage-get-by-id: Get a specific document by id
+ * - storage-get-by-slug: Get a specific document by slug (searches all docs)
+ * - storage-put: Create or update a document (uses id as key)
+ * - storage-delete: Delete a document by id
  */
 export default class DocumentsServer implements Party.Server {
   constructor(public party: Party.Room) {}
@@ -37,46 +39,59 @@ export default class DocumentsServer implements Party.Server {
       return Response.json(documents);
     }
 
-    // Storage operation: Get a specific document by slug
-    if (request.method === "GET" && path.startsWith("/storage-get/")) {
-      const slugEncoded = path.split("/").pop();
-      if (!slugEncoded) {
+    // Storage operation: Get a specific document by id
+    if (request.method === "GET" && path.startsWith("/storage-get-by-id/")) {
+      const idEncoded = path.split("/").pop();
+      if (!idEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
-      const slug = decodeURIComponent(slugEncoded);
-      let doc = await this.party.storage.get<Document>(slug);
+      const id = decodeURIComponent(idEncoded);
+      const doc = await this.party.storage.get<Document>(id);
       if (!doc) {
         return new Response("Not found", { status: 404 });
-      }
-
-      // Migration: Add ID to documents that don't have one
-      if (!doc.id) {
-        const now = Date.now();
-        const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
-        doc = { ...doc, id };
-        await this.party.storage.put(slug, doc);
       }
 
       return Response.json(doc);
     }
 
-    // Storage operation: Put (create or update) a document
-    if (request.method === "POST" && path === "/storage-put") {
-      const body = (await request.json()) as { key: string; value: Document };
-      await this.party.storage.put(body.key, body.value);
-      return Response.json({ success: true });
-    }
-
-    // Storage operation: Delete a document by slug
-    if (request.method === "POST" && path.startsWith("/storage-delete/")) {
+    // Storage operation: Get a specific document by slug
+    if (request.method === "GET" && path.startsWith("/storage-get-by-slug/")) {
       const slugEncoded = path.split("/").pop();
       if (!slugEncoded) {
         return new Response("Not found", { status: 404 });
       }
 
       const slug = decodeURIComponent(slugEncoded);
-      await this.party.storage.delete(slug);
+
+      // Search through all documents to find matching slug
+      const entries = await this.party.storage.list<Document>();
+      for (const [, doc] of entries) {
+        if (doc.slug === slug) {
+          return Response.json(doc);
+        }
+      }
+
+      return new Response("Not found", { status: 404 });
+    }
+
+    // Storage operation: Put (create or update) a document
+    // Key should be the document id
+    if (request.method === "POST" && path === "/storage-put") {
+      const body = (await request.json()) as { value: Document };
+      await this.party.storage.put(body.value.id, body.value);
+      return Response.json({ success: true });
+    }
+
+    // Storage operation: Delete a document by id
+    if (request.method === "POST" && path.startsWith("/storage-delete/")) {
+      const idEncoded = path.split("/").pop();
+      if (!idEncoded) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const id = decodeURIComponent(idEncoded);
+      await this.party.storage.delete(id);
       return Response.json({ success: true });
     }
 
@@ -87,29 +102,15 @@ export default class DocumentsServer implements Party.Server {
     showArchived: boolean = false
   ): Promise<Document[]> {
     const docs: Document[] = [];
-    const updates: Promise<void>[] = [];
 
-    await this.party.storage.list().then((entries) => {
-      for (const [key, value] of entries) {
-        let doc = value as Document;
-
-        // Migration: Add ID to documents that don't have one
-        if (!doc.id) {
-          const now = Date.now();
-          const id = `doc-${now}-${Math.random().toString(36).substr(2, 9)}`;
-          doc = { ...doc, id };
-          updates.push(this.party.storage.put(key as string, doc));
-        }
-
+    await this.party.storage.list<Document>().then((entries) => {
+      for (const [, doc] of entries) {
         // Filter by archived status
         if (showArchived ? doc.archived : !doc.archived) {
           docs.push(doc);
         }
       }
     });
-
-    // Wait for all migrations to complete
-    await Promise.all(updates);
 
     // Sort by updatedAt descending
     return docs.sort((a, b) => b.updatedAt - a.updatedAt);

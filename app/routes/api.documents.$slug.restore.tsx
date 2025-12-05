@@ -18,10 +18,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const decodedSlug = decodeURIComponent(slug);
 
-  // Get existing document
+  // Get existing document by slug
   const getUrl = getStorageUrl(
     request,
-    `/storage-get/${encodeURIComponent(decodedSlug)}`
+    `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
   );
   const getResponse = await fetch(getUrl);
 
@@ -38,12 +38,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
     updatedAt: Date.now(),
   };
 
-  // Save to storage
+  // Save to storage (using id as key)
   const putUrl = getStorageUrl(request, `/storage-put`);
   const putResponse = await fetch(putUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key: decodedSlug, value: updatedDoc }),
+    body: JSON.stringify({ value: updatedDoc }),
   });
 
   if (!putResponse.ok) {

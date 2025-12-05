@@ -20,7 +20,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const decodedSlug = decodeURIComponent(slug);
   const storageUrl = getStorageUrl(
     request,
-    `/storage-get/${encodeURIComponent(decodedSlug)}`
+    `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
   );
   const response = await fetch(storageUrl);
 
@@ -47,10 +47,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   // PUT /api/documents/:slug - Update document
   if (method === "PUT") {
-    // Get existing document
+    // Get existing document by slug
     const getUrl = getStorageUrl(
       request,
-      `/storage-get/${encodeURIComponent(decodedSlug)}`
+      `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
 
@@ -69,12 +69,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       updatedAt: Date.now(),
     };
 
-    // Update in storage
+    // Update in storage (using id as key)
     const storageUrl = getStorageUrl(request, `/storage-put`);
     const response = await fetch(storageUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: decodedSlug, value: updatedDoc }),
+      body: JSON.stringify({ value: updatedDoc }),
     });
 
     if (!response.ok) {
@@ -108,7 +108,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // No change needed, just return existing doc
       const getUrl = getStorageUrl(
         request,
-        `/storage-get/${encodeURIComponent(decodedSlug)}`
+        `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
       );
       const response = await fetch(getUrl);
       const doc = await response.json();
@@ -118,7 +118,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Check if new slug already exists
     const checkUrl = getStorageUrl(
       request,
-      `/storage-get/${encodeURIComponent(newSlug)}`
+      `/storage-get-by-slug/${encodeURIComponent(newSlug)}`
     );
     const checkResponse = await fetch(checkUrl);
     if (checkResponse.ok) {
@@ -131,7 +131,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Get old document
     const getUrl = getStorageUrl(
       request,
-      `/storage-get/${encodeURIComponent(decodedSlug)}`
+      `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
 
@@ -142,24 +142,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const doc = (await getResponse.json()) as Document;
 
     // Create updated document with new slug
+    // No need to change storage key - it uses id!
     const updatedDoc: Document = {
       ...doc,
       slug: newSlug,
       updatedAt: Date.now(),
     };
 
-    // Delete old and create new
-    const deleteUrl = getStorageUrl(
-      request,
-      `/storage-delete/${encodeURIComponent(decodedSlug)}`
-    );
-    await fetch(deleteUrl, { method: "POST" });
-
+    // Simply update the document in place (storage key is id, which doesn't change)
     const putUrl = getStorageUrl(request, `/storage-put`);
     await fetch(putUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: newSlug, value: updatedDoc }),
+      body: JSON.stringify({ value: updatedDoc }),
     });
 
     return json(updatedDoc);
@@ -170,7 +165,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Get document to check if it's archived
     const getUrl = getStorageUrl(
       request,
-      `/storage-get/${encodeURIComponent(decodedSlug)}`
+      `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
 
@@ -187,10 +182,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    // Delete from storage
+    // Delete from storage using id
     const deleteUrl = getStorageUrl(
       request,
-      `/storage-delete/${encodeURIComponent(decodedSlug)}`
+      `/storage-delete/${encodeURIComponent(doc.id)}`
     );
     const response = await fetch(deleteUrl, { method: "POST" });
 

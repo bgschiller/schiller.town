@@ -254,7 +254,11 @@ export default function DocPage() {
       }
 
       // Call Remix API route to organize items
-      const host = window.location.origin;
+      // Normalize 0.0.0.0 to localhost for client connections
+      let host = window.location.origin;
+      if (host.includes('0.0.0.0')) {
+        host = host.replace('0.0.0.0', 'localhost');
+      }
       const response = await fetch(`${host}/api/organize-list`, {
         method: "POST",
         headers: {
@@ -477,7 +481,11 @@ export default function DocPage() {
 
       try {
         // Call Remix API route
-        const host = window.location.origin;
+        // Normalize 0.0.0.0 to localhost for client connections
+        let host = window.location.origin;
+        if (host.includes('0.0.0.0')) {
+          host = host.replace('0.0.0.0', 'localhost');
+        }
         await fetch(`${host}/api/documents/${encodeURIComponent(slug)}`, {
           method: "PUT",
           headers: {
