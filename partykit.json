@@ -1,8 +1,9 @@
 {
   "$schema": "https://www.partykit.io/schema.json",
-  "name": "partymix-example",
+  "name": "schiller-town-notes",
   // remix compiles our actual entry point (party/main.ts) to build/index.js
   "main": "build/index.js",
+  "domain": "schiller.town",
   "compatibilityDate": "2023-12-22",
   "parties": {
     // we also have a sub party that we use just for geo presence
