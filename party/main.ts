@@ -11,8 +11,8 @@ export interface Env {
   YjsServer: DurableObjectNamespace;
   GeoServer: DurableObjectNamespace;
   ANTHROPIC_API_KEY?: string;
-  SESSION_SECRET?: string;
-  HOUSEHOLD_PASSWORD?: string;
+  SESSION_SECRET: string;
+  HOUSEHOLD_PASSWORD: string;
 }
 
 // Only log dev ready in Node.js environments (not Cloudflare Workers)
@@ -54,32 +54,37 @@ export { GeoServer } from "./geo";
 // Helper function to serve static files in development
 function serveStaticAsset(pathname: string): Response | null {
   // Only in Node.js environments (local development)
-  if (typeof process === 'undefined' || !process.cwd) {
+  if (typeof process === "undefined" || !process.cwd) {
     return null;
   }
 
   try {
-    const publicPath = path.join(process.cwd(), 'public', pathname);
+    const publicPath = path.join(process.cwd(), "public", pathname);
     if (fs.existsSync(publicPath)) {
       const content = fs.readFileSync(publicPath);
       const ext = path.extname(pathname);
       const contentType =
-        ext === '.js' ? 'application/javascript' :
-        ext === '.css' ? 'text/css' :
-        ext === '.html' ? 'text/html' :
-        ext === '.json' ? 'application/json' :
-        ext === '.ico' ? 'image/x-icon' :
-        'application/octet-stream';
+        ext === ".js"
+          ? "application/javascript"
+          : ext === ".css"
+          ? "text/css"
+          : ext === ".html"
+          ? "text/html"
+          : ext === ".json"
+          ? "application/json"
+          : ext === ".ico"
+          ? "image/x-icon"
+          : "application/octet-stream";
 
       return new Response(content, {
         headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=31536000, immutable',
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=31536000, immutable",
         },
       });
     }
   } catch (e) {
-    console.error('[Static Asset] Error serving file:', e);
+    console.error("[Static Asset] Error serving file:", e);
   }
 
   return null;
@@ -87,7 +92,11 @@ function serveStaticAsset(pathname: string): Response | null {
 
 // Export default handler for Cloudflare Workers
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
     const url = new URL(request.url);
 
     // Try to route to a PartyServer instance (yjs-server, geo-server, documents-server)
@@ -97,7 +106,7 @@ export default {
     }
 
     // Serve static assets from the public directory (development only)
-    if (url.pathname.startsWith('/build/') || url.pathname === '/favicon.ico') {
+    if (url.pathname.startsWith("/build/") || url.pathname === "/favicon.ico") {
       const staticResponse = serveStaticAsset(url.pathname);
       if (staticResponse) {
         return staticResponse;

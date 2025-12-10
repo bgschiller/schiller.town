@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from "partymix";
 import { logout } from "~/utils/session.server";
 
-export async function action({ request }: ActionFunctionArgs) {
-  return logout(request);
+export async function action({ request, context }: ActionFunctionArgs) {
+  return logout(request, context.env.SESSION_SECRET);
 }
 
 export async function loader() {

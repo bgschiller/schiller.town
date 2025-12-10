@@ -29,7 +29,7 @@ export const loader: LoaderFunction = async function ({
   context,
   request,
 }: LoaderFunctionArgs) {
-  const userName = await requireAuth(request, "/");
+  const userName = await requireAuth(request, context.env.SESSION_SECRET, "/");
   return Response.json({ userName });
 };
 

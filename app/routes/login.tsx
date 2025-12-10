@@ -7,8 +7,8 @@ import {
   verifyPassword,
 } from "~/utils/session.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const userName = await getUserName(request);
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const userName = await getUserName(request, context.env.SESSION_SECRET);
   if (userName) {
     // Already logged in, redirect to home
     return new Response(null, {
@@ -19,7 +19,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({});
 }
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
   const password = formData.get("password");
   const name = formData.get("name");
@@ -40,11 +40,15 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "Please enter the password" }, { status: 400 });
   }
 
-  if (!verifyPassword(password)) {
+  if (!verifyPassword(password, context.env.HOUSEHOLD_PASSWORD)) {
     return json({ error: "Incorrect password" }, { status: 401 });
   }
 
-  return createUserSession(name.trim(), redirectTo.toString());
+  return createUserSession(
+    name.trim(),
+    redirectTo.toString(),
+    context.env.SESSION_SECRET
+  );
 }
 
 export default function Login() {
@@ -164,7 +168,9 @@ export default function Login() {
         <div className="login-card">
           <div className="household-emoji">🏠</div>
           <h1 className="login-title">Household Notes</h1>
-          <p className="login-subtitle">Enter the family password to continue</p>
+          <p className="login-subtitle">
+            Enter the family password to continue
+          </p>
 
           {actionData?.error && (
             <div className="error-message">{actionData.error}</div>

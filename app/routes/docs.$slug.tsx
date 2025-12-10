@@ -35,7 +35,7 @@ export const loader: LoaderFunction = async function ({
   request,
   params,
 }: LoaderFunctionArgs) {
-  const userName = await requireAuth(request, "/");
+  const userName = await requireAuth(request, context.env.SESSION_SECRET, "/");
   const slug = params.slug;
 
   if (!slug) {
