@@ -79,6 +79,50 @@ export default function DocPage() {
   const [isClient, setIsClient] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device and update visual viewport CSS variable
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile =
+        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+        window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+
+    const updateVisualViewport = () => {
+      if (window.visualViewport) {
+        // Update CSS custom property with visual viewport height
+        document.documentElement.style.setProperty(
+          "--visual-viewport-height",
+          `${window.visualViewport.height}px`
+        );
+      }
+    };
+
+    checkMobile();
+    updateVisualViewport();
+
+    window.addEventListener("resize", checkMobile);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", updateVisualViewport);
+      window.visualViewport.addEventListener("scroll", updateVisualViewport);
+    }
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener(
+          "resize",
+          updateVisualViewport
+        );
+        window.visualViewport.removeEventListener(
+          "scroll",
+          updateVisualViewport
+        );
+      }
+    };
+  }, []);
 
   // Pick a random grocery item emoji for the Group Items button
   const foodEmoji = useMemo(() => {
@@ -537,6 +581,13 @@ export default function DocPage() {
   return (
     <>
       <style>{`
+        /* Set a CSS variable for visual viewport height on mobile */
+        @supports (height: 100dvh) {
+          :root {
+            --viewport-height: 100dvh;
+          }
+        }
+
         body {
           background: #f5f5f0;
         }
@@ -818,6 +869,26 @@ export default function DocPage() {
           padding: 0.25rem;
           border-radius: 0.5rem;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          gap: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+          .bubble-menu {
+            display: flex !important;
+            position: fixed !important;
+            /* Position near top of visual viewport to avoid keyboard */
+            inset: 1rem 1.5rem auto 1.5rem !important;
+            transform: none !important;
+            width: calc(100vw - 3rem) !important;
+            max-width: calc(100vw - 3rem) !important;
+            margin: 0 auto !important;
+            background-color: #0D0D0D !important;
+            padding: 0.75rem;
+            gap: 0.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+          }
         }
 
         .bubble-menu-button {
@@ -832,6 +903,15 @@ export default function DocPage() {
           transition: background-color 0.15s;
           font-family: inherit;
           white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+          .bubble-menu-button {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            min-height: 48px;
+          }
         }
 
         .bubble-menu-button:hover:not(:disabled) {
