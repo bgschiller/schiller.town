@@ -1,4 +1,4 @@
-import type * as Party from "partykit/server";
+import { Server } from "partyserver";
 
 export type Document = {
   id: string; // Stable identifier for the document
@@ -21,15 +21,15 @@ export type Document = {
  * - storage-put: Create or update a document (uses id as key)
  * - storage-delete: Delete a document by id
  */
-export default class DocumentsServer implements Party.Server {
-  constructor(public party: Party.Room) {}
-
-  async onRequest(request: Party.Request) {
+export class DocumentsServer extends Server {
+  async onRequest(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    // The pathname will be like /parties/documents/{room}/storage-*
+    // The pathname will be like /parties/documents-server/{room}/storage-*
     // We need to extract the path after the room name
-    const pathMatch = url.pathname.match(/^\/parties\/documents\/[^/]+(.*)$/);
+    const pathMatch = url.pathname.match(
+      /^\/parties\/documents-server\/[^/]+(.*)$/
+    );
     const path = pathMatch ? pathMatch[1] : url.pathname;
 
     // Storage operation: List all documents
@@ -47,7 +47,7 @@ export default class DocumentsServer implements Party.Server {
       }
 
       const id = decodeURIComponent(idEncoded);
-      const doc = await this.party.storage.get<Document>(id);
+      const doc = await this.ctx.storage.get<Document>(id);
       if (!doc) {
         return new Response("Not found", { status: 404 });
       }
@@ -65,7 +65,7 @@ export default class DocumentsServer implements Party.Server {
       const slug = decodeURIComponent(slugEncoded);
 
       // Search through all documents to find matching slug
-      const entries = await this.party.storage.list<Document>();
+      const entries = await this.ctx.storage.list<Document>();
       for (const [, doc] of entries) {
         if (doc.slug === slug) {
           return Response.json(doc);
@@ -79,7 +79,7 @@ export default class DocumentsServer implements Party.Server {
     // Key should be the document id
     if (request.method === "POST" && path === "/storage-put") {
       const body = (await request.json()) as { value: Document };
-      await this.party.storage.put(body.value.id, body.value);
+      await this.ctx.storage.put(body.value.id, body.value);
       return Response.json({ success: true });
     }
 
@@ -91,7 +91,7 @@ export default class DocumentsServer implements Party.Server {
       }
 
       const id = decodeURIComponent(idEncoded);
-      await this.party.storage.delete(id);
+      await this.ctx.storage.delete(id);
       return Response.json({ success: true });
     }
 
@@ -103,7 +103,7 @@ export default class DocumentsServer implements Party.Server {
   ): Promise<Document[]> {
     const docs: Document[] = [];
 
-    await this.party.storage.list<Document>().then((entries) => {
+    await this.ctx.storage.list<Document>().then((entries) => {
       for (const [, doc] of entries) {
         // Filter by archived status
         if (showArchived ? doc.archived : !doc.archived) {
@@ -116,5 +116,3 @@ export default class DocumentsServer implements Party.Server {
     return docs.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 }
-
-DocumentsServer satisfies Party.Worker;

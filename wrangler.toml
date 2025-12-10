@@ -1,0 +1,39 @@
+name = "schiller-town-notes"
+main = "build/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Static assets configuration
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Environment variables
+[vars]
+ANTHROPIC_API_KEY = ""
+
+# Durable Object bindings
+[[durable_objects.bindings]]
+name = "MainServer"
+class_name = "MainServer"
+script_name = "schiller-town-notes"
+
+[[durable_objects.bindings]]
+name = "DocumentsServer"
+class_name = "DocumentsServer"
+script_name = "schiller-town-notes"
+
+[[durable_objects.bindings]]
+name = "YjsServer"
+class_name = "YjsServer"
+script_name = "schiller-town-notes"
+
+[[durable_objects.bindings]]
+name = "GeoServer"
+class_name = "GeoServer"
+script_name = "schiller-town-notes"
+
+# Migrations - using new_sqlite_classes for free plan compatibility
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MainServer", "DocumentsServer", "YjsServer", "GeoServer"]

@@ -1,11 +1,23 @@
-import type * as Party from "partykit/server";
+import { Server } from "partyserver";
 import { onConnect } from "y-partykit";
+import type { Connection, ConnectionContext } from "partyserver";
 
-export default class YjsServer implements Party.Server {
-  constructor(public room: Party.Room) {}
+// Define a compatibility type for y-partykit
+type YPartykitRoom = {
+  id: string;
+  storage: DurableObjectStorage;
+};
 
-  async onConnect(conn: Party.Connection) {
-    return onConnect(conn, this.room, {
+export class YjsServer extends Server {
+  async onConnect(connection: Connection, context: ConnectionContext): Promise<void> {
+    // Create a compatibility object for y-partykit
+    const room: YPartykitRoom = {
+      id: this.name,
+      storage: this.ctx.storage,
+    };
+
+    // Use y-partykit's onConnect with our compatibility layer
+    return onConnect(connection as any, room as any, {
       persist: {
         mode: "snapshot",
       },

@@ -20,8 +20,6 @@ import { MergeAdjacentLists } from "~/utils/merge-adjacent-lists";
 import { requireAuth } from "~/utils/session.server";
 import { useEffect, useRef, useState, useMemo } from "react";
 
-declare const PARTYKIT_HOST: string;
-
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
     { title: data?.slug ? `${data.slug} - Collaborative Doc` : "Document" },
@@ -62,7 +60,6 @@ export const loader: LoaderFunction = async function ({
     const document = await response.json();
 
     return Response.json({
-      partykitHost: PARTYKIT_HOST,
       userName,
       slug,
       documentId: document.id,
@@ -81,6 +78,7 @@ export default function DocPage() {
   const [ydoc, setYdoc] = useState<ReturnType<typeof getYDoc>>(null);
   const [isClient, setIsClient] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
 
   // Pick a random grocery item emoji for the Group Items button
   const foodEmoji = useMemo(() => {
@@ -143,6 +141,24 @@ export default function DocPage() {
     const provider = getProvider(documentId);
     if (doc && provider) {
       setYdoc(doc);
+
+      // Wait for initial sync before showing editors
+      const handleSync = (synced: boolean) => {
+        if (synced) {
+          setIsSynced(true);
+        }
+      };
+
+      // Check if already synced
+      if (provider.synced) {
+        setIsSynced(true);
+      } else {
+        provider.on("synced", handleSync);
+      }
+
+      return () => {
+        provider.off("synced", handleSync);
+      };
     }
   }, [documentId]);
 
@@ -847,7 +863,7 @@ export default function DocPage() {
           </div>
         </div>
 
-        {!isClient || !ydoc ? (
+        {!isClient || !ydoc || !isSynced ? (
           <div style={{ padding: "2rem", color: "#666", textAlign: "center" }}>
             Loading editor...
           </div>

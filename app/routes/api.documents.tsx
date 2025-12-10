@@ -11,11 +11,11 @@ export type Document = {
   archived: boolean;
 };
 
-// Helper to get PartyKit storage URL
+// Helper to get PartyServer storage URL
 function getStorageUrl(request: Request, path: string = "") {
   const url = new URL(request.url);
   const host = `${url.protocol}//${url.host}`;
-  return `${host}/parties/documents/default${path}`;
+  return `${host}/parties/documents-server/default${path}`;
 }
 
 // GET /api/documents?archived=true

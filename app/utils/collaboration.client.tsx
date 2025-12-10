@@ -48,7 +48,7 @@ function getProvider(room: string) {
 
     provider = new YPartyKitProvider(host, room, doc, {
       awareness,
-      party: "yjs",
+      party: "yjs-server",
     });
     currentRoom = room;
   }

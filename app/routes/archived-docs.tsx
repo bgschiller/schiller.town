@@ -7,8 +7,6 @@ import { useLoaderData, Form, useNavigate } from "@remix-run/react";
 import { requireAuth } from "~/utils/session.server";
 import { useEffect, useState } from "react";
 
-declare const PARTYKIT_HOST: string;
-
 export const meta: MetaFunction = () => {
   return [
     { title: "Archived Documents" },
@@ -31,7 +29,7 @@ export const loader: LoaderFunction = async function ({
   request,
 }: LoaderFunctionArgs) {
   const userName = await requireAuth(request, "/");
-  return Response.json({ partykitHost: PARTYKIT_HOST, userName });
+  return Response.json({ userName });
 };
 
 export default function ArchivedDocuments() {

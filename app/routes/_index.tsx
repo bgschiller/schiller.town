@@ -8,8 +8,6 @@ import { useLoaderData, Form, useNavigate, useFetcher } from "@remix-run/react";
 import { requireAuth } from "~/utils/session.server";
 import { useEffect, useState } from "react";
 
-declare const PARTYKIT_HOST: string;
-
 export const meta: MetaFunction = () => {
   return [
     { title: "Documents" },
@@ -32,7 +30,7 @@ export const loader: LoaderFunction = async function ({
   request,
 }: LoaderFunctionArgs) {
   const userName = await requireAuth(request, "/");
-  return Response.json({ partykitHost: PARTYKIT_HOST, userName });
+  return Response.json({ userName });
 };
 
 export const action: ActionFunction = async function ({ request }) {

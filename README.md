@@ -1,6 +1,6 @@
-# Welcome to 🎈 PartyKit ⤫ Remix 💿!
+# Welcome to Household Collaborative Notes 📝
 
-This is a collaborative document editor built with [Remix](https://remix.run) and [PartyKit](https://partykit.io).
+This is a real-time collaborative document editor built with [Remix](https://remix.run) and [PartyServer](https://github.com/cloudflare/partykit/tree/main/packages/partyserver) (Cloudflare Workers + Durable Objects).
 
 ## Features
 
@@ -13,41 +13,68 @@ This is a collaborative document editor built with [Remix](https://remix.run) an
 
 This app includes an AI-powered feature to organize grocery lists by department. See [GROCERY_SORTING.md](./GROCERY_SORTING.md) for setup instructions.
 
+## Resources
+
 - [Remix Docs](https://remix.run/docs)
-- [PartyKit Docs](https://docs.partykit.io/)
+- [PartyServer GitHub](https://github.com/cloudflare/partykit/tree/main/packages/partyserver)
+- [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- [Wrangler Docs](https://developers.cloudflare.com/workers/wrangler/)
+- [AGENTS.md](./AGENTS.md) - Comprehensive developer guide
 
 ## Development
+
+Install dependencies (using pnpm):
+
+```sh
+pnpm install
+```
 
 You will be running two processes during development:
 
 - The Remix development server
-- The PartyKit server
+- The Wrangler development server (Cloudflare Workers local emulator)
 
 Both are started with one command:
 
 ```sh
-npm run dev
+pnpm run dev
 ```
 
-Open up [http://127.0.0.1:1999](http://127.0.0.1:1999) and you should be ready to go!
+Open up [http://127.0.0.1:8787](http://127.0.0.1:8787) and you should be ready to go!
 
-If you want to check the production build, you can stop the dev server and run following commands:
+If you want to check the production build:
 
 ```sh
-npm run build
-npm start
+pnpm run build
+pnpm start
 ```
-
-Then refresh the same URL in your browser (no live reload for production builds).
 
 ## Deployment
 
+First, set your production secrets:
+
 ```sh
-npm run deploy
+wrangler secret put SESSION_SECRET
+wrangler secret put HOUSEHOLD_PASSWORD
+wrangler secret put ANTHROPIC_API_KEY  # optional
 ```
 
-If you don't already have a PartyKit account, you'll be prompted to create one during the deploy process.
+Then deploy:
+
+```sh
+pnpm run deploy
+```
+
+This will deploy your app to Cloudflare Workers. If you don't have a Cloudflare account, you'll be prompted to create one.
+
+## Configuration
+
+See `wrangler.toml` for Cloudflare Workers configuration including Durable Object bindings and migrations.
+
+## Migration from PartyKit
+
+This project was migrated from PartyKit to PartyServer to resolve Durable Objects deployment issues on Cloudflare's free plan. See [PARTYSERVER_MIGRATION.md](./PARTYSERVER_MIGRATION.md) for details.
 
 ## Thanks
 
-_(This starter based on the original template for [Cloudflare Workers](https://github.com/remix-run/remix/tree/main/templates/cloudflare-workers))_
+_(Originally based on the Remix template for [Cloudflare Workers](https://github.com/remix-run/remix/tree/main/templates/cloudflare-workers) and [PartyKit](https://partykit.io))_

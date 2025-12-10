@@ -20,14 +20,14 @@ export default function WhosHere({ room = "index" }: { room?: string }) {
       ? window.location.hostname === "localhost" ||
         window.location.hostname === "0.0.0.0" ||
         window.location.hostname === "127.0.0.1"
-        ? "localhost:1999"
+        ? "localhost:8787"
         : window.location.origin
       : loaderData?.partykitHost;
 
   usePartySocket({
     host,
     // connect to the party defined by 'geo.ts'
-    party: "geo",
+    party: "geo-server",
     // use the provided room or default to 'index'
     room,
     // Pass the user name in the query string

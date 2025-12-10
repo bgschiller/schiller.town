@@ -2,16 +2,17 @@
 
 ## Project Overview
 
-This is a real-time collaborative document editor built for household use, combining **Remix** (React framework) and **PartyKit** (real-time backend). It features password-protected document editing with real-time collaboration, presence indicators, and AI-powered grocery list organization.
+This is a real-time collaborative document editor built for household use, combining **Remix** (React framework) and **PartyServer** (real-time backend on Cloudflare Workers with Durable Objects). It features password-protected document editing with real-time collaboration, presence indicators, and AI-powered grocery list organization.
 
 ## Tech Stack
 
 - **Frontend**: Remix 2.x (React framework)
-- **Backend**: PartyKit (serverless WebSocket platform on Cloudflare Workers)
+- **Backend**: PartyServer (Cloudflare Workers + Durable Objects)
 - **Collaboration**: Yjs + TipTap (CRDT-based collaborative editing)
 - **AI**: Anthropic Claude 3.5 Haiku (grocery categorization)
 - **Package Manager**: **pnpm** (always use `pnpm` commands, never `npm`)
 - **Runtime**: Node.js ≥18.17.1
+- **Deployment**: Wrangler (Cloudflare CLI)
 
 ## Architecture
 
@@ -22,24 +23,24 @@ Client (Remix/React)
   ↓ HTTP API calls
 Remix API Routes (/app/routes/api.*.tsx)
   ↓ Storage operations
-PartyKit DocumentsServer (/party/documents.ts)
-  ↓ Durable storage
-PartyKit Storage (key-value)
+PartyServer DocumentsServer (/party/documents.ts)
+  ↓ Durable Object storage
+Cloudflare Durable Objects Storage (key-value)
 
 Client (TipTap Editor)
   ↓ WebSocket
-PartyKit YjsServer (/party/yjs.ts)
+PartyServer YjsServer (/party/yjs.ts)
   ↓ CRDT sync
 Yjs Document (collaborative state)
 ```
 
 ### Key Architectural Decisions
 
-1. **Separation of Concerns** (see REFACTORING_SUMMARY.md):
+1. **Separation of Concerns** (see REFACTORING_SUMMARY.md and PARTYSERVER_MIGRATION.md):
 
    - **Remix routes** handle HTTP requests, validation, and business logic
-   - **PartyKit servers** provide low-level storage operations and WebSocket connections
-   - Clean separation between REST API (Remix) and real-time features (PartyKit)
+   - **PartyServer Durable Objects** provide low-level storage operations and WebSocket connections
+   - Clean separation between REST API (Remix) and real-time features (PartyServer)
 
 2. **Document Identity**:
 
@@ -52,9 +53,9 @@ Yjs Document (collaborative state)
      - API routes look up documents by slug, then operate on them by id
 
 3. **Environment Variables**:
-   - Defined in `partykit.json` under `vars`
+   - Defined in `wrangler.toml` under `vars`
    - Accessible in Remix routes via `context.env` (see ENV_VARS_SOLUTION.md)
-   - No need to proxy through PartyKit for env var access
+   - Set production secrets with `wrangler secret put <NAME>`
 
 ## Directory Structure
 
@@ -83,24 +84,27 @@ Yjs Document (collaborative state)
   entry.server.tsx     - Server entry point
 
 /party
-  main.ts              - Main PartyKit server (handles Remix HTTP requests)
-  documents.ts         - Document storage layer (low-level operations only)
-  yjs.ts               - Yjs collaboration server (WebSocket sync)
-  geo.ts               - Geo presence tracking (shows active users)
+  main.ts              - Main PartyServer entry point + exports all servers
+  documents.ts         - Document storage Durable Object
+  yjs.ts               - Yjs collaboration Durable Object
+  geo.ts               - Geo presence tracking Durable Object
   grocery-categorizer.ts - AI + fallback grocery categorization logic
 
 /public               - Static assets
-/build                - Compiled Remix app (used by PartyKit)
+/build                - Compiled Remix app (served by Wrangler)
+wrangler.toml         - Cloudflare Workers configuration
 ```
 
-## PartyKit Servers
+## PartyServer Durable Objects
 
-The app uses **three separate PartyKit parties** (defined in `partykit.json`):
+The app uses **four Durable Object classes** (defined in `wrangler.toml`):
 
-1. **`main`** (main.ts): Handles all Remix HTTP requests via `partymix`
-2. **`documents`** (documents.ts): Provides storage operations for documents
-3. **`yjs`** (yjs.ts): Handles real-time Yjs document synchronization
-4. **`geo`** (geo.ts): Tracks user presence (who's online, from where)
+1. **`MainServer`** (main.ts): Handles all Remix HTTP requests via `partymix`
+2. **`DocumentsServer`** (documents.ts): Provides storage operations for documents
+3. **`YjsServer`** (yjs.ts): Handles real-time Yjs document synchronization
+4. **`GeoServer`** (geo.ts): Tracks user presence (who's online, from where)
+
+Party URLs are auto-kebab-cased: `DocumentsServer` → `/parties/documents-server/`
 
 ## Key Features
 
@@ -208,25 +212,30 @@ pnpm install
 # Create .env file
 cp .env.example .env  # or create manually
 
-# Set required environment variables
+# Set required environment variables (for local dev)
 SESSION_SECRET=<generate with: openssl rand -base64 32>
 HOUSEHOLD_PASSWORD=<your shared password>
 ANTHROPIC_API_KEY=<optional>
+
+# For production deployment
+wrangler secret put SESSION_SECRET
+wrangler secret put HOUSEHOLD_PASSWORD
+wrangler secret put ANTHROPIC_API_KEY  # optional
 ```
 
 ### Running Locally
 
 ```bash
-# Start both Remix dev server and PartyKit server
+# Start both Remix dev server and Wrangler dev server
 pnpm run dev
 
-# Opens at http://127.0.0.1:1999
+# Opens at http://127.0.0.1:8787 (Wrangler default port)
 ```
 
 This runs:
 
 1. **Remix dev server** (watches files, triggers HMR)
-2. **PartyKit dev server** (runs all PartyKit parties locally)
+2. **Wrangler dev server** (runs all Durable Objects locally with Miniflare)
 
 ### Building
 
@@ -236,7 +245,7 @@ pnpm run build
 
 # Compiles:
 # - Remix app → public/build/ (client) and build/index.js (server)
-# - PartyKit reads build/index.js as entry point
+# - Wrangler uses build/index.js as entry point (specified in wrangler.toml)
 ```
 
 ### Type Checking
@@ -248,20 +257,20 @@ pnpm run check
 ### Deployment
 
 ```bash
-# Deploy to PartyKit (includes build step)
+# Deploy to Cloudflare Workers (includes build step)
 pnpm run deploy
 
-# Set production environment variables first:
-npx partykit env add SESSION_SECRET <value>
-npx partykit env add HOUSEHOLD_PASSWORD <value>
-npx partykit env add ANTHROPIC_API_KEY <value>
+# Set production secrets first:
+wrangler secret put SESSION_SECRET
+wrangler secret put HOUSEHOLD_PASSWORD
+wrangler secret put ANTHROPIC_API_KEY  # optional
 ```
 
 ## Important Files
 
 ### Configuration
 
-- **`partykit.json`** - PartyKit configuration (parties, env vars, serve path)
+- **`wrangler.toml`** - Cloudflare Workers configuration (Durable Objects, env vars, site)
 - **`remix.config.js`** - Remix configuration (build settings)
 - **`tsconfig.json`** - TypeScript configuration
 - **`package.json`** - Dependencies and scripts
@@ -278,6 +287,7 @@ npx partykit env add ANTHROPIC_API_KEY <value>
 - **`GROCERY_SORTING.md`** - AI grocery feature setup
 - **`ENV_VARS_SOLUTION.md`** - Environment variable access pattern
 - **`REFACTORING_SUMMARY.md`** - Architecture refactoring history
+- **`PARTYSERVER_MIGRATION.md`** - PartyKit to PartyServer migration guide
 
 ## Common Tasks
 
@@ -286,14 +296,15 @@ npx partykit env add ANTHROPIC_API_KEY <value>
 1. Create `app/routes/api.my-feature.tsx`
 2. Export `loader` (GET) or `action` (POST/PUT/DELETE)
 3. Access env vars via `context.env`
-4. Call PartyKit storage if needed: `fetch('/parties/documents/default/storage-*')`
+4. Call PartyServer storage if needed: `fetch('/parties/documents-server/default/storage-*')`
 
-### Add a New PartyKit Party
+### Add a New Durable Object
 
-1. Create `party/my-party.ts`
-2. Implement `Party.Server` interface
-3. Add to `partykit.json` under `parties`
-4. Access via `/parties/my-party/{room-id}`
+1. Create `party/my-server.ts` extending `Server` from `partyserver`
+2. Export the class from `party/main.ts`
+3. Add binding to `wrangler.toml` under `[[durable_objects.bindings]]`
+4. Add to migrations under `new_sqlite_classes`
+5. Access via `/parties/my-server/{room-id}` (auto-kebab-cased)
 
 ### Modify Document Schema
 
@@ -321,13 +332,14 @@ npx partykit env add ANTHROPIC_API_KEY <value>
 ### Collaboration not working
 
 - Ensure WebSocket connection is established (check browser DevTools Network tab)
-- Verify `PARTYKIT_HOST` is set correctly
-- Check that `party/yjs.ts` server is running
+- Verify party name is `yjs-server` (kebab-cased from `YjsServer`)
+- Check that Wrangler dev server is running
 
 ### Environment variables not available
 
 - In Remix routes: access via `context.env.VARIABLE_NAME`
-- Ensure variables are defined in `partykit.json` under `vars`
+- Ensure variables are defined in `wrangler.toml` under `vars`
+- For production: use `wrangler secret put VARIABLE_NAME`
 - Restart dev server after changing env vars
 
 ### Authentication issues
@@ -348,15 +360,17 @@ npx partykit env add ANTHROPIC_API_KEY <value>
 2. **Session cookies** are HTTP-only and encrypted
 3. **No user isolation** - all authenticated users see all documents
 4. **Environment variables** are server-side only (never exposed to client)
-5. **PartyKit storage** is persistent but not encrypted at rest by default
+5. **Durable Objects storage** is persistent but not encrypted at rest by default
+6. **Secrets** should be set with `wrangler secret put` for production
 
 ## Performance Considerations
 
-1. **Yjs persistence**: Uses snapshot mode (efficient for small documents)
-2. **Document list**: Fetched once on page load, then cached client-side
-3. **Metadata updates**: Debounced (1 second) to avoid excessive API calls
-4. **Presence tracking**: Uses hibernation mode for high concurrency
-5. **AI categorization**: Claude 3.5 Haiku is fast (<1s) and cheap (<$0.01/request)
+1. **Durable Objects**: Use SQLite-backed storage for free plan compatibility
+2. **Yjs persistence**: Uses snapshot mode (efficient for small documents)
+3. **Document list**: Fetched once on page load, then cached client-side
+4. **Metadata updates**: Debounced (1 second) to avoid excessive API calls
+5. **Presence tracking**: Uses hibernation mode for high concurrency
+6. **AI categorization**: Claude 3.5 Haiku is fast (<1s) and cheap (<$0.01/request)
 
 ## Testing Checklist
 
@@ -408,12 +422,13 @@ For a small household app (dozens of documents), this is performant. For larger 
    - Document metadata (searchable text) stored in `documents` party with `id` as key
    - Collaborative editor state (Yjs CRDT) stored in `yjs` party with `id` as key
 4. **Slug changes are atomic** - since storage uses `id` as the key, renaming is just updating the slug field in the document (no migration)
-5. **PartyKit dev server runs on port 1999**, not 3000
+5. **Wrangler dev server runs on port 8787**, not 3000 (can be configured)
 6. **Document IDs are auto-migrated** - older docs may not have IDs initially
-7. **Presence requires connection state** - pass `?name=` query param to geo party
-8. **TipTap extensions must match on all clients** - schema mismatches break collaboration
-9. **Bubble menu only shows for list selections** - check `shouldShow` logic
-10. **Client-only code** must check `isClient` state for SSR compatibility
+7. **Party names are kebab-cased** - `YjsServer` becomes `yjs-server` in URLs
+8. **Presence requires connection state** - pass `?name=` query param to geo party
+9. **TipTap extensions must match on all clients** - schema mismatches break collaboration
+10. **Bubble menu only shows for list selections** - check `shouldShow` logic
+11. **Client-only code** must check `isClient` state for SSR compatibility
 
 ## Extension Ideas
 
@@ -438,8 +453,10 @@ For a small household app (dozens of documents), this is performant. For larger 
 ## Additional Resources
 
 - [Remix Docs](https://remix.run/docs)
-- [PartyKit Docs](https://docs.partykit.io/)
+- [PartyServer GitHub](https://github.com/cloudflare/partykit/tree/main/packages/partyserver)
+- [Cloudflare Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- [Wrangler Docs](https://developers.cloudflare.com/workers/wrangler/)
 - [Yjs Documentation](https://docs.yjs.dev/)
 - [TipTap Docs](https://tiptap.dev/)
 - [Anthropic API Docs](https://docs.anthropic.com/)
-- [Partymix (Remix + PartyKit)](https://github.com/partykit/partymix)
+- [Partymix (Remix + PartyServer)](https://github.com/partykit/partymix)

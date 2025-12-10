@@ -33,7 +33,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   // Get ANTHROPIC_API_KEY from Remix context (passed from PartyKit env)
-  const apiKey = context.env.ANTHROPIC_API_KEY as string | undefined;
+  const apiKey = context?.env?.ANTHROPIC_API_KEY as string | undefined;
 
   // Use the grocery categorizer directly - it will automatically choose between
   // AI and keyword-based categorization depending on API key availability
