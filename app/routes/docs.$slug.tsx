@@ -11,6 +11,7 @@ import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
 import Paragraph from "@tiptap/extension-paragraph";
 import Placeholder from "@tiptap/extension-placeholder";
+import History from "@tiptap/extension-history";
 import {
   Collaboration,
   getYDoc,
@@ -79,8 +80,9 @@ export default function DocPage() {
   const [isClient, setIsClient] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
-  const [showCommandBar, setShowCommandBar] = useState(false);
   const [hasListSelection, setHasListSelection] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   // No longer need visual viewport tracking with static positioning
   // The command bar will naturally be at the bottom of the flex container
@@ -213,7 +215,7 @@ export default function DocPage() {
         isClient && ydoc && isSynced
           ? [
               StarterKit.configure({
-                history: false,
+                history: false, // Disable StarterKit history, use separate History extension
                 bulletList: {
                   keepMarks: true,
                   keepAttributes: false,
@@ -226,6 +228,7 @@ export default function DocPage() {
                 document: ydoc,
                 field: `${documentId}-content`,
               }),
+              History, // Enable history for undo/redo
               MergeAdjacentLists,
             ]
           : [StarterKit],
@@ -244,44 +247,39 @@ export default function DocPage() {
     contentEditorRef.current = contentEditor;
   }, [contentEditor]);
 
-  // Track editor focus and selection to show/hide command bar
+  // Track editor selection to show/hide command bar buttons
   useEffect(() => {
     if (!contentEditor) return;
 
-    const updateCommandBar = () => {
-      const isFocused = contentEditor.isFocused;
-      setShowCommandBar(isFocused);
-
+    const updateSelection = () => {
       // Check if selection includes list items
-      if (isFocused) {
-        const { state } = contentEditor;
-        const { from, to } = state.selection;
-        let hasListItem = false;
+      const { state } = contentEditor;
+      const { from, to } = state.selection;
+      let hasListItem = false;
 
-        state.doc.nodesBetween(from, to, (node) => {
-          if (node.type.name === "listItem") {
-            hasListItem = true;
-          }
-        });
+      state.doc.nodesBetween(from, to, (node) => {
+        if (node.type.name === "listItem") {
+          hasListItem = true;
+        }
+      });
 
-        setHasListSelection(hasListItem && from !== to);
-      } else {
-        setHasListSelection(false);
-      }
+      setHasListSelection(hasListItem && from !== to);
+
+      // Update undo/redo availability
+      setCanUndo(contentEditor.can().undo());
+      setCanRedo(contentEditor.can().redo());
     };
 
-    // Update on selection change
-    contentEditor.on("selectionUpdate", updateCommandBar);
-    contentEditor.on("focus", updateCommandBar);
-    contentEditor.on("blur", updateCommandBar);
+    // Update on selection change and transaction
+    contentEditor.on("selectionUpdate", updateSelection);
+    contentEditor.on("transaction", updateSelection);
 
     // Initial check
-    updateCommandBar();
+    updateSelection();
 
     return () => {
-      contentEditor.off("selectionUpdate", updateCommandBar);
-      contentEditor.off("focus", updateCommandBar);
-      contentEditor.off("blur", updateCommandBar);
+      contentEditor.off("selectionUpdate", updateSelection);
+      contentEditor.off("transaction", updateSelection);
     };
   }, [contentEditor]);
 
@@ -434,6 +432,18 @@ export default function DocPage() {
     } finally {
       setIsOrganizing(false);
     }
+  };
+
+  // Handler for undo
+  const handleUndo = () => {
+    if (!contentEditor) return;
+    contentEditor.chain().focus().undo().run();
+  };
+
+  // Handler for redo
+  const handleRedo = () => {
+    if (!contentEditor) return;
+    contentEditor.chain().focus().redo().run();
   };
 
   // Handler to remove headings and flatten all items into one list
@@ -908,13 +918,9 @@ export default function DocPage() {
           box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
         }
 
-        .command-bar-container.hidden {
-          display: none;
-        }
-
         .command-bar {
           display: flex;
-          gap: 0.5rem;
+          gap: 1rem;
           align-items: center;
           justify-content: space-between;
           width: 100%;
@@ -924,6 +930,18 @@ export default function DocPage() {
         @media (max-width: 768px) {
           .command-bar {
             gap: 0.75rem;
+          }
+        }
+
+        .command-bar-group {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+        }
+
+        @media (max-width: 768px) {
+          .command-bar-group {
+            gap: 0.375rem;
           }
         }
 
@@ -969,6 +987,20 @@ export default function DocPage() {
 
         .command-bar-button.secondary {
           background: #fafaf8;
+        }
+
+        .command-bar-button.icon-button {
+          min-width: 44px;
+          width: 44px;
+          padding: 0.625rem;
+          font-size: 1.25rem;
+          flex: 0 0 auto;
+        }
+
+        @media (max-width: 768px) {
+          .command-bar-button.icon-button {
+            font-size: 1.125rem;
+          }
         }
       `}</style>
 
@@ -1021,47 +1053,71 @@ export default function DocPage() {
           </div>
         </div>
 
-        {/* Command bar - negative margin pulls it up to overlay the container padding */}
-        {isClient && showCommandBar && (
-          <div
-            className={`command-bar-container ${
-              !showCommandBar ? "hidden" : ""
-            }`}
-          >
+        {/* Command bar - always visible at the bottom */}
+        {isClient && (
+          <div className="command-bar-container">
             <div className="command-bar-wrapper">
               <div className="command-bar">
-                <button
-                  onMouseDown={(e) => {
-                    // Prevent editor from losing focus on click
-                    e.preventDefault();
-                  }}
-                  onClick={handleOrganizeList}
-                  className="command-bar-button"
-                  disabled={isOrganizing || !hasListSelection}
-                  title={
-                    hasListSelection
-                      ? "Organize selected list items by category"
-                      : "Select list items to organize"
-                  }
-                >
-                  {isOrganizing ? "⏳ Grouping..." : `${foodEmoji} Group Items`}
-                </button>
-                <button
-                  onMouseDown={(e) => {
-                    // Prevent editor from losing focus on click
-                    e.preventDefault();
-                  }}
-                  onClick={handleFlattenList}
-                  className="command-bar-button secondary"
-                  disabled={isOrganizing || !hasListSelection}
-                  title={
-                    hasListSelection
-                      ? "Remove headings and flatten list"
-                      : "Select list items to flatten"
-                  }
-                >
-                  📋 Flatten
-                </button>
+                <div className="command-bar-group">
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={handleUndo}
+                    className="command-bar-button icon-button"
+                    disabled={!canUndo}
+                    title="Undo"
+                  >
+                    ↶
+                  </button>
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={handleRedo}
+                    className="command-bar-button icon-button"
+                    disabled={!canRedo}
+                    title="Redo"
+                  >
+                    ↷
+                  </button>
+                </div>
+                <div className="command-bar-group">
+                  <button
+                    onMouseDown={(e) => {
+                      // Prevent editor from losing focus on click
+                      e.preventDefault();
+                    }}
+                    onClick={handleOrganizeList}
+                    className="command-bar-button"
+                    disabled={isOrganizing || !hasListSelection}
+                    title={
+                      hasListSelection
+                        ? "Organize selected list items by category"
+                        : "Select list items to organize"
+                    }
+                  >
+                    {isOrganizing
+                      ? "⏳ Grouping..."
+                      : `${foodEmoji} Group Items`}
+                  </button>
+                  <button
+                    onMouseDown={(e) => {
+                      // Prevent editor from losing focus on click
+                      e.preventDefault();
+                    }}
+                    onClick={handleFlattenList}
+                    className="command-bar-button secondary"
+                    disabled={isOrganizing || !hasListSelection}
+                    title={
+                      hasListSelection
+                        ? "Remove headings and flatten list"
+                        : "Select list items to flatten"
+                    }
+                  >
+                    📋 Flatten
+                  </button>
+                </div>
               </div>
             </div>
           </div>
