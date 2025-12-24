@@ -5,7 +5,7 @@ import type {
 } from "partymix";
 import { useLoaderData, Form, useNavigate } from "@remix-run/react";
 import WhosHere from "../components/whos-here";
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Document from "@tiptap/extension-document";
 import Text from "@tiptap/extension-text";
@@ -79,50 +79,11 @@ export default function DocPage() {
   const [isClient, setIsClient] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [showCommandBar, setShowCommandBar] = useState(false);
+  const [hasListSelection, setHasListSelection] = useState(false);
 
-  // Detect mobile device and update visual viewport CSS variable
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile =
-        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-        window.innerWidth < 768;
-      setIsMobile(mobile);
-    };
-
-    const updateVisualViewport = () => {
-      if (window.visualViewport) {
-        // Update CSS custom property with visual viewport height
-        document.documentElement.style.setProperty(
-          "--visual-viewport-height",
-          `${window.visualViewport.height}px`
-        );
-      }
-    };
-
-    checkMobile();
-    updateVisualViewport();
-
-    window.addEventListener("resize", checkMobile);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", updateVisualViewport);
-      window.visualViewport.addEventListener("scroll", updateVisualViewport);
-    }
-
-    return () => {
-      window.removeEventListener("resize", checkMobile);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener(
-          "resize",
-          updateVisualViewport
-        );
-        window.visualViewport.removeEventListener(
-          "scroll",
-          updateVisualViewport
-        );
-      }
-    };
-  }, []);
+  // No longer need visual viewport tracking with static positioning
+  // The command bar will naturally be at the bottom of the flex container
 
   // Pick a random grocery item emoji for the Group Items button
   const foodEmoji = useMemo(() => {
@@ -206,12 +167,13 @@ export default function DocPage() {
     }
   }, [documentId]);
 
-  // Only create editors on the client when ydoc is ready
+  // Only create editors on the client when ydoc is ready AND synced
   // For SSR, provide minimal extensions to avoid schema errors
   const titleEditor = useEditor(
     {
+      immediatelyRender: false,
       extensions:
-        isClient && ydoc
+        isClient && ydoc && isSynced
           ? [
               Document,
               Paragraph,
@@ -239,15 +201,16 @@ export default function DocPage() {
           return false;
         },
       },
-      editable: isClient && !!ydoc,
+      editable: isClient && !!ydoc && isSynced,
     },
-    [isClient, ydoc, documentId]
+    [isClient, ydoc, isSynced, documentId]
   );
 
   const contentEditor = useEditor(
     {
+      immediatelyRender: false,
       extensions:
-        isClient && ydoc
+        isClient && ydoc && isSynced
           ? [
               StarterKit.configure({
                 history: false,
@@ -271,14 +234,55 @@ export default function DocPage() {
           class: "content-editor",
         },
       },
-      editable: isClient && !!ydoc,
+      editable: isClient && !!ydoc && isSynced,
     },
-    [isClient, ydoc, documentId]
+    [isClient, ydoc, isSynced, documentId]
   );
 
   // Store contentEditor in ref so titleEditor can access it
   useEffect(() => {
     contentEditorRef.current = contentEditor;
+  }, [contentEditor]);
+
+  // Track editor focus and selection to show/hide command bar
+  useEffect(() => {
+    if (!contentEditor) return;
+
+    const updateCommandBar = () => {
+      const isFocused = contentEditor.isFocused;
+      setShowCommandBar(isFocused);
+
+      // Check if selection includes list items
+      if (isFocused) {
+        const { state } = contentEditor;
+        const { from, to } = state.selection;
+        let hasListItem = false;
+
+        state.doc.nodesBetween(from, to, (node) => {
+          if (node.type.name === "listItem") {
+            hasListItem = true;
+          }
+        });
+
+        setHasListSelection(hasListItem && from !== to);
+      } else {
+        setHasListSelection(false);
+      }
+    };
+
+    // Update on selection change
+    contentEditor.on("selectionUpdate", updateCommandBar);
+    contentEditor.on("focus", updateCommandBar);
+    contentEditor.on("blur", updateCommandBar);
+
+    // Initial check
+    updateCommandBar();
+
+    return () => {
+      contentEditor.off("selectionUpdate", updateCommandBar);
+      contentEditor.off("focus", updateCommandBar);
+      contentEditor.off("blur", updateCommandBar);
+    };
   }, [contentEditor]);
 
   // Handler to organize selected list items
@@ -581,30 +585,37 @@ export default function DocPage() {
   return (
     <>
       <style>{`
-        /* Set a CSS variable for visual viewport height on mobile */
-        @supports (height: 100dvh) {
-          :root {
-            --viewport-height: 100dvh;
-          }
-        }
-
         body {
           background: #f5f5f0;
         }
 
+        .page-wrapper {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          position: relative;
+          overscroll-behavior: contain;
+        }
+
         .container {
-          min-height: 100vh;
           background: white;
           max-width: 50rem;
           margin: 0 auto;
-          padding: 3rem 4rem;
           position: relative;
           box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          overflow: hidden;
+          /* Add padding at bottom for command bar */
+          padding-bottom: 64px;
         }
 
         @media (max-width: 768px) {
           .container {
-            padding: 2rem 1.5rem;
+            padding-bottom: 64px;
           }
         }
 
@@ -612,17 +623,31 @@ export default function DocPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 3rem;
-          padding-bottom: 1.5rem;
+          margin-bottom: 2rem;
+          padding: 1.5rem 2rem 1rem 2rem;
           border-bottom: 1px solid #e5e5e5;
           flex-wrap: wrap;
           gap: 1rem;
+          flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
           .header {
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+          }
+        }
+
+        .editors-wrapper {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 0 2rem;
+        }
+
+        @media (max-width: 768px) {
+          .editors-wrapper {
+            padding: 0 1rem;
           }
         }
 
@@ -738,7 +763,8 @@ export default function DocPage() {
           line-height: 1.7;
           color: #2e2e2e;
           outline: none;
-          min-height: 60vh;
+          min-height: 100%;
+          padding-bottom: 2rem;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
@@ -862,144 +888,183 @@ export default function DocPage() {
           white-space: nowrap;
         }
 
-        /* Bubble menu styles */
-        .bubble-menu {
+        /* Command bar styles - negative margin pulls it up to overlay the padding */
+        .command-bar-container {
+          width: 100%;
+          z-index: 10;
+          touch-action: none;
+          /* Negative margin pulls it up to compensate for container padding */
+          margin-top: -54px;
+        }
+
+        .command-bar-wrapper {
+          width: 100%;
+          z-index: 10;
+          padding: 0.5rem;
+          padding-bottom: var(--safe-padding-bottom);
           display: flex;
-          background-color: #0D0D0D;
-          padding: 0.25rem;
-          border-radius: 0.5rem;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          background: white;
+          border-top: 1px solid #e5e5e5;
+          box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .command-bar-container.hidden {
+          display: none;
+        }
+
+        .command-bar {
+          display: flex;
           gap: 0.5rem;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          min-height: 44px;
         }
 
         @media (max-width: 768px) {
-          .bubble-menu {
-            display: flex !important;
-            position: fixed !important;
-            /* Position near top of visual viewport to avoid keyboard */
-            inset: 1rem 1.5rem auto 1.5rem !important;
-            transform: none !important;
-            width: calc(100vw - 3rem) !important;
-            max-width: calc(100vw - 3rem) !important;
-            margin: 0 auto !important;
-            background-color: #0D0D0D !important;
-            padding: 0.75rem;
-            gap: 0.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
+          .command-bar {
+            gap: 0.75rem;
           }
         }
 
-        .bubble-menu-button {
-          border: none;
-          background: none;
-          color: white;
-          font-size: 0.875rem;
+        .command-bar-button {
+          border: 1px solid #d1d5db;
+          background: white;
+          color: #1a1a1a;
+          font-size: 0.9375rem;
           font-weight: 500;
-          padding: 0.5rem 0.75rem;
-          border-radius: 0.375rem;
+          padding: 0.625rem 1rem;
+          border-radius: 0.5rem;
           cursor: pointer;
-          transition: background-color 0.15s;
+          transition: all 0.15s;
           font-family: inherit;
           white-space: nowrap;
+          flex: 1;
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.375rem;
         }
 
-        @media (max-width: 768px) {
-          .bubble-menu-button {
-            flex: 1;
-            padding: 0.875rem 1rem;
-            font-size: 1rem;
-            min-height: 48px;
+        @media (min-width: 769px) {
+          .command-bar-button {
+            min-width: 120px;
           }
         }
 
-        .bubble-menu-button:hover:not(:disabled) {
-          background-color: #2a2a2a;
+        .command-bar-button:hover:not(:disabled) {
+          background: #f5f5f0;
+          border-color: #a3a3a3;
         }
 
-        .bubble-menu-button:disabled {
-          opacity: 0.6;
+        .command-bar-button:active:not(:disabled) {
+          background: #e5e5e5;
+        }
+
+        .command-bar-button:disabled {
+          opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .command-bar-button.secondary {
+          background: #fafaf8;
         }
       `}</style>
 
-      <div className="container">
-        <div className="header">
-          <button className="back-button" onClick={() => navigate("/")}>
-            ← Back to documents
-          </button>
+      <div className="page-wrapper">
+        <div className="container">
+          <div className="header">
+            <button className="back-button" onClick={() => navigate("/")}>
+              ← Back to documents
+            </button>
 
-          <div className="presence-indicator">
-            <span>👋 {userName}</span>
-            <div className="presence-divider"></div>
-            <WhosHere room={documentId} />
-            <div className="presence-divider"></div>
-            <Form method="post" action="/logout" style={{ display: "inline" }}>
-              <button type="submit" className="logout-button">
-                Logout
-              </button>
-            </Form>
+            <div className="presence-indicator">
+              <span>👋 {userName}</span>
+              <div className="presence-divider"></div>
+              <WhosHere room={documentId} />
+              <div className="presence-divider"></div>
+              <Form
+                method="post"
+                action="/logout"
+                style={{ display: "inline" }}
+              >
+                <button type="submit" className="logout-button">
+                  Logout
+                </button>
+              </Form>
+            </div>
+          </div>
+
+          <div className="editors-wrapper">
+            {!isClient || !ydoc || !isSynced ? (
+              <div
+                style={{ padding: "2rem", color: "#666", textAlign: "center" }}
+              >
+                Loading editor...
+              </div>
+            ) : (
+              <>
+                <div className="title-editor">
+                  {titleEditor && <EditorContent editor={titleEditor} />}
+                </div>
+
+                <div className="content-editor">
+                  {contentEditor && (
+                    <>
+                      <EditorContent editor={contentEditor} />
+                    </>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {!isClient || !ydoc || !isSynced ? (
-          <div style={{ padding: "2rem", color: "#666", textAlign: "center" }}>
-            Loading editor...
+        {/* Command bar - negative margin pulls it up to overlay the container padding */}
+        {isClient && showCommandBar && (
+          <div
+            className={`command-bar-container ${
+              !showCommandBar ? "hidden" : ""
+            }`}
+          >
+            <div className="command-bar-wrapper">
+              <div className="command-bar">
+                <button
+                  onMouseDown={(e) => {
+                    // Prevent editor from losing focus on click
+                    e.preventDefault();
+                  }}
+                  onClick={handleOrganizeList}
+                  className="command-bar-button"
+                  disabled={isOrganizing || !hasListSelection}
+                  title={
+                    hasListSelection
+                      ? "Organize selected list items by category"
+                      : "Select list items to organize"
+                  }
+                >
+                  {isOrganizing ? "⏳ Grouping..." : `${foodEmoji} Group Items`}
+                </button>
+                <button
+                  onMouseDown={(e) => {
+                    // Prevent editor from losing focus on click
+                    e.preventDefault();
+                  }}
+                  onClick={handleFlattenList}
+                  className="command-bar-button secondary"
+                  disabled={isOrganizing || !hasListSelection}
+                  title={
+                    hasListSelection
+                      ? "Remove headings and flatten list"
+                      : "Select list items to flatten"
+                  }
+                >
+                  📋 Flatten
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
-          <>
-            <div className="title-editor">
-              {titleEditor && <EditorContent editor={titleEditor} />}
-            </div>
-
-            <div className="content-editor">
-              {contentEditor && (
-                <>
-                  <BubbleMenu
-                    editor={contentEditor}
-                    tippyOptions={{ duration: 100 }}
-                    // @ts-expect-error - immediatelyRender is needed for SSR compatibility
-                    immediatelyRender={false}
-                    shouldShow={({ editor, state }) => {
-                      // Only show when selection includes list items
-                      const { from, to } = state.selection;
-                      let hasListItem = false;
-
-                      state.doc.nodesBetween(from, to, (node) => {
-                        if (node.type.name === "listItem") {
-                          hasListItem = true;
-                        }
-                      });
-
-                      // Show if we have list items and a selection
-                      return hasListItem && from !== to;
-                    }}
-                  >
-                    <div className="bubble-menu">
-                      <button
-                        onClick={handleOrganizeList}
-                        className="bubble-menu-button"
-                        disabled={isOrganizing}
-                      >
-                        {isOrganizing
-                          ? "⏳ Grouping..."
-                          : `${foodEmoji} Group Items`}
-                      </button>
-                      <button
-                        onClick={handleFlattenList}
-                        className="bubble-menu-button"
-                        disabled={isOrganizing}
-                      >
-                        📋 Flatten
-                      </button>
-                    </div>
-                  </BubbleMenu>
-                  <EditorContent editor={contentEditor} />
-                </>
-              )}
-            </div>
-          </>
         )}
       </div>
     </>

@@ -8,6 +8,8 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import ViewportSizeLayout from "./components/ViewportSizeLayout";
+import TouchScrollControl from "./components/TouchScrollControl";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -18,7 +20,10 @@ export default function App() {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width,initial-scale=1,minimum-scale=1,height=device-height"
+        />
         <Meta />
         <Links />
         <style
@@ -41,13 +46,30 @@ export default function App() {
 
           :root {
             --max-width: 800px;
+            --safe-padding-bottom: max(calc(env(safe-area-inset-bottom) - 8px), 16px);
+          }
+
+          html, body {
+            height: var(--viewport-height, 100%);
+            max-height: var(--viewport-height, 100%);
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            overscroll-behavior: none;
+          }
+
+          #root-viewport {
+            height: 100%;
           }
         `,
           }}
         />
       </head>
       <body>
-        <Outlet />
+        <TouchScrollControl />
+        <ViewportSizeLayout>
+          <Outlet />
+        </ViewportSizeLayout>
         <ScrollRestoration />
         <Scripts />
         {process.env.NODE_ENV === "development" && <LiveReload />}

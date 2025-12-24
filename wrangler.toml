@@ -21,22 +21,18 @@ ANTHROPIC_API_KEY = ""
 [[durable_objects.bindings]]
 name = "MainServer"
 class_name = "MainServer"
-script_name = "schiller-town-notes"
 
 [[durable_objects.bindings]]
 name = "DocumentsServer"
 class_name = "DocumentsServer"
-script_name = "schiller-town-notes"
 
 [[durable_objects.bindings]]
 name = "YjsServer"
 class_name = "YjsServer"
-script_name = "schiller-town-notes"
 
 [[durable_objects.bindings]]
 name = "GeoServer"
 class_name = "GeoServer"
-script_name = "schiller-town-notes"
 
 # Migrations - using new_sqlite_classes for free plan compatibility
 [[migrations]]
