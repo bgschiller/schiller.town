@@ -41,4 +41,8 @@ class_name = "StarChartServer"
 # Migrations - using new_sqlite_classes for free plan compatibility
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["MainServer", "DocumentsServer", "YjsServer", "GeoServer", "StarChartServer"]
+new_sqlite_classes = ["MainServer", "DocumentsServer", "YjsServer", "GeoServer"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["StarChartServer"]
