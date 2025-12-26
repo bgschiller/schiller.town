@@ -50,10 +50,6 @@ export default function App() {
           }
 
           html, body {
-            height: var(--viewport-height, 100%);
-            max-height: var(--viewport-height, 100%);
-            overflow: hidden;
-            position: fixed;
             width: 100%;
             overscroll-behavior: none;
           }

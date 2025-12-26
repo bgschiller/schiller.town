@@ -34,7 +34,11 @@ class_name = "YjsServer"
 name = "GeoServer"
 class_name = "GeoServer"
 
+[[durable_objects.bindings]]
+name = "StarChartServer"
+class_name = "StarChartServer"
+
 # Migrations - using new_sqlite_classes for free plan compatibility
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["MainServer", "DocumentsServer", "YjsServer", "GeoServer"]
+new_sqlite_classes = ["MainServer", "DocumentsServer", "YjsServer", "GeoServer", "StarChartServer"]

@@ -124,10 +124,7 @@ export default function ViewportSizeLayout({
   return (
     <div
       style={{
-        height: calculatedHeight,
-        maxHeight: calculatedHeight,
-        overflow: keyboardOpen ? "hidden" : "visible",
-        position: "relative",
+        minHeight: calculatedHeight,
         display: "flex",
         flexDirection: "column",
         overscrollBehavior: "none",

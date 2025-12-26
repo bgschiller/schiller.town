@@ -10,8 +10,8 @@ import { useEffect, useState } from "react";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Documents" },
-    { name: "description", content: "Your collaborative documents" },
+    { title: "Home - Documents & Star Charts" },
+    { name: "description", content: "Your collaborative documents and star charts" },
   ];
 };
 
@@ -286,6 +286,28 @@ export default function Index() {
           justify-content: space-between;
         }
 
+        .section-header {
+          max-width: 1200px;
+          margin: 0 auto 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .section-title {
+          font-size: 1.75rem;
+          font-weight: 700;
+          color: #1a1a1a;
+        }
+
+        .section-divider {
+          max-width: 1200px;
+          margin: 3rem auto;
+          border: none;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+        }
+
         .header-left {
           display: flex;
           flex-direction: column;
@@ -296,6 +318,18 @@ export default function Index() {
           font-size: 2rem;
           font-weight: 700;
           color: #1a1a1a;
+        }
+
+        .page-title {
+          font-size: 2.5rem;
+          font-weight: 800;
+          color: #1a1a1a;
+          margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+          font-size: 1.125rem;
+          color: #666;
         }
 
         .archived-link {
@@ -536,6 +570,39 @@ export default function Index() {
           border: 2px dashed rgba(255, 255, 255, 0.5);
         }
 
+        .star-chart-card {
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+          color: #78350f;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 3px solid #f59e0b;
+          min-height: 200px;
+        }
+
+        .star-chart-card:hover {
+          border-color: #d97706;
+          transform: translateY(-2px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        .star-chart-icon {
+          font-size: 4rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .star-chart-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-bottom: 0.25rem;
+        }
+
+        .star-chart-description {
+          font-size: 0.875rem;
+          opacity: 0.9;
+        }
+
         .create-card:hover {
           border-color: white;
           transform: translateY(-2px);
@@ -582,10 +649,8 @@ export default function Index() {
       <div className="docs-container">
         <div className="docs-header">
           <div className="header-left">
-            <h1 className="docs-title">Documents</h1>
-            <a href="/archived-docs" className="archived-link">
-              📦 View archived documents
-            </a>
+            <h1 className="page-title">Household</h1>
+            <p className="page-subtitle">Documents and Star Charts</p>
           </div>
           <div className="user-info">
             <span>👋 {userName}</span>
@@ -594,6 +659,16 @@ export default function Index() {
                 Logout
               </button>
             </Form>
+          </div>
+        </div>
+
+        {/* Documents Section */}
+        <div className="section-header">
+          <div className="header-left">
+            <h2 className="section-title">📄 Documents</h2>
+            <a href="/archived-docs" className="archived-link">
+              📦 View archived documents
+            </a>
           </div>
         </div>
 
@@ -709,6 +784,26 @@ export default function Index() {
             )}
           </>
         )}
+
+        <hr className="section-divider" />
+
+        {/* Star Chart Section */}
+        <div className="section-header">
+          <h2 className="section-title">⭐ Star Charts</h2>
+        </div>
+
+        <div className="docs-grid" style={{ marginBottom: "3rem" }}>
+          <div
+            className="doc-card star-chart-card"
+            onClick={() => navigate("/star-chart")}
+          >
+            <div className="star-chart-icon">🎉</div>
+            <div className="star-chart-title">Everett's Potty Chart</div>
+            <div className="star-chart-description">
+              Track potty training progress
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

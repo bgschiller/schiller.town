@@ -10,6 +10,7 @@ export interface Env {
   DocumentsServer: DurableObjectNamespace;
   YjsServer: DurableObjectNamespace;
   GeoServer: DurableObjectNamespace;
+  StarChartServer: DurableObjectNamespace;
   ANTHROPIC_API_KEY?: string;
   SESSION_SECRET: string;
   HOUSEHOLD_PASSWORD: string;
@@ -50,6 +51,7 @@ export class MainServer extends Server {
 export { DocumentsServer } from "./documents";
 export { YjsServer } from "./yjs";
 export { GeoServer } from "./geo";
+export { StarChartServer } from "./star-chart";
 
 // Helper function to serve static files in development
 function serveStaticAsset(pathname: string): Response | null {

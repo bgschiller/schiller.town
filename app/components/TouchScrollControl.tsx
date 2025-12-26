@@ -32,8 +32,7 @@ export default function TouchScrollControl() {
       const deltaY = touchY - touchStartY;
 
       if (!scrollingElement) {
-        // Not in a scrollable area - prevent all movement
-        e.preventDefault();
+        // Not in a scrollable area - allow normal page scrolling
         return;
       }
 
