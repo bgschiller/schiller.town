@@ -1,10 +1,7 @@
-import type {
-  LoaderFunction,
-  LoaderFunctionArgs,
-  MetaFunction,
-} from "partymix";
+import type { LoaderFunction, MetaFunction } from "partymix";
 import { useLoaderData, Form, useNavigate } from "@remix-run/react";
-import { requireAuth } from "~/utils/session.server";
+import { createAuthenticatedLoader } from "~/utils/session.server";
+import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 
 export const meta: MetaFunction = () => {
@@ -24,16 +21,15 @@ type Document = {
   archived: boolean;
 };
 
-export const loader: LoaderFunction = async function ({
-  context,
-  request,
-}: LoaderFunctionArgs) {
-  const userName = await requireAuth(request, context.env.SESSION_SECRET, "/");
-  return Response.json({ userName });
-};
+export const loader: LoaderFunction = createAuthenticatedLoader(
+  async ({ userName }) => {
+    return Response.json({ userName });
+  }
+);
 
 export default function ArchivedDocuments() {
-  const { userName, partykitHost } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const { userName } = data as unknown as { userName: string };
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,15 +38,10 @@ export default function ArchivedDocuments() {
     const fetchDocuments = async () => {
       try {
         // Call Remix API route
-        // Normalize 0.0.0.0 to localhost for client connections
-        let host = window.location.origin;
-        if (host.includes("0.0.0.0")) {
-          host = host.replace("0.0.0.0", "localhost");
-        }
-        const response = await fetch(`${host}/api/documents?archived=true`);
+        const response = await fetch(getApiUrl("/api/documents?archived=true"));
 
         if (response.ok) {
-          const docs = await response.json();
+          const docs = (await response.json()) as Document[];
           setDocuments(docs);
         }
       } catch (error) {
@@ -104,13 +95,8 @@ export default function ArchivedDocuments() {
 
     try {
       // Call Remix API route
-      // Normalize 0.0.0.0 to localhost for client connections
-      let host = window.location.origin;
-      if (host.includes("0.0.0.0")) {
-        host = host.replace("0.0.0.0", "localhost");
-      }
       const response = await fetch(
-        `${host}/api/documents/${encodeURIComponent(slug)}/restore`,
+        getApiUrl(`/api/documents/${encodeURIComponent(slug)}/restore`),
         {
           method: "POST",
         }
@@ -141,13 +127,8 @@ export default function ArchivedDocuments() {
 
     try {
       // Call Remix API route
-      // Normalize 0.0.0.0 to localhost for client connections
-      let host = window.location.origin;
-      if (host.includes("0.0.0.0")) {
-        host = host.replace("0.0.0.0", "localhost");
-      }
       const response = await fetch(
-        `${host}/api/documents/${encodeURIComponent(slug)}`,
+        getApiUrl(`/api/documents/${encodeURIComponent(slug)}`),
         {
           method: "DELETE",
         }
@@ -157,7 +138,7 @@ export default function ArchivedDocuments() {
         // Remove from local state
         setDocuments((docs) => docs.filter((doc) => doc.slug !== slug));
       } else {
-        const result = await response.json();
+        const result = (await response.json()) as { error?: string };
         alert(result.error || "Failed to delete document");
       }
     } catch (error) {

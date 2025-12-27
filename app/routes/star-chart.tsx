@@ -1,10 +1,7 @@
-import type {
-  LoaderFunction,
-  LoaderFunctionArgs,
-  MetaFunction,
-} from "partymix";
+import type { LoaderFunction, MetaFunction } from "partymix";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { requireAuth } from "~/utils/session.server";
+import { createAuthenticatedLoader } from "~/utils/session.server";
+import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 import type { StarChart } from "~/../../party/star-chart";
 import { getProvider } from "~/utils/collaboration.client";
@@ -16,17 +13,11 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export const loader: LoaderFunction = async function ({
-  context,
-  request,
-}: LoaderFunctionArgs) {
-  const userName = await requireAuth(
-    request,
-    context.env.SESSION_SECRET,
-    "/star-chart"
-  );
-  return Response.json({ userName });
-};
+export const loader: LoaderFunction = createAuthenticatedLoader(
+  async ({ userName }) => {
+    return Response.json({ userName });
+  }
+);
 
 export default function StarChartPage() {
   useLoaderData<typeof loader>(); // Ensure auth is checked
@@ -45,11 +36,7 @@ export default function StarChartPage() {
   useEffect(() => {
     const fetchChart = async () => {
       try {
-        let host = window.location.origin;
-        if (host.includes("0.0.0.0")) {
-          host = host.replace("0.0.0.0", "localhost");
-        }
-        const response = await fetch(`${host}/api/star-chart`);
+        const response = await fetch(getApiUrl("/api/star-chart"));
 
         if (response.ok) {
           const chartData: StarChart = await response.json();

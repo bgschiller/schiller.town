@@ -1,17 +1,20 @@
 import type {
   LoaderFunction,
-  LoaderFunctionArgs,
   MetaFunction,
   ActionFunction,
 } from "partymix";
 import { useLoaderData, Form, useNavigate, useFetcher } from "@remix-run/react";
-import { requireAuth } from "~/utils/session.server";
+import { createAuthenticatedLoader } from "~/utils/session.server";
+import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 
 export const meta: MetaFunction = () => {
   return [
     { title: "Home - Documents & Star Charts" },
-    { name: "description", content: "Your collaborative documents and star charts" },
+    {
+      name: "description",
+      content: "Your collaborative documents and star charts",
+    },
   ];
 };
 
@@ -25,13 +28,11 @@ type Document = {
   archived: boolean;
 };
 
-export const loader: LoaderFunction = async function ({
-  context,
-  request,
-}: LoaderFunctionArgs) {
-  const userName = await requireAuth(request, context.env.SESSION_SECRET, "/");
-  return Response.json({ userName });
-};
+export const loader: LoaderFunction = createAuthenticatedLoader(
+  async ({ userName }) => {
+    return Response.json({ userName });
+  }
+);
 
 export const action: ActionFunction = async function ({ request }) {
   const formData = await request.formData();
@@ -75,7 +76,8 @@ export const action: ActionFunction = async function ({ request }) {
 };
 
 export default function Index() {
-  const { userName, partykitHost } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const { userName } = data as unknown as { userName: string };
   const navigate = useNavigate();
   const fetcher = useFetcher<typeof action>();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -88,15 +90,10 @@ export default function Index() {
     const fetchDocuments = async () => {
       try {
         // Call Remix API route
-        // Normalize 0.0.0.0 to localhost for client connections
-        let host = window.location.origin;
-        if (host.includes("0.0.0.0")) {
-          host = host.replace("0.0.0.0", "localhost");
-        }
-        const response = await fetch(`${host}/api/documents`);
+        const response = await fetch(getApiUrl("/api/documents"));
 
         if (response.ok) {
-          const docs = await response.json();
+          const docs = (await response.json()) as Document[];
           setDocuments(docs);
         }
       } catch (error) {
@@ -111,14 +108,21 @@ export default function Index() {
 
   // Handle navigation when document creation is complete
   useEffect(() => {
-    if (fetcher.data && "slug" in fetcher.data && fetcher.state === "idle") {
+    if (
+      fetcher.data &&
+      typeof fetcher.data === "object" &&
+      "slug" in fetcher.data &&
+      fetcher.state === "idle"
+    ) {
       navigate(`/docs/${fetcher.data.slug}`);
     } else if (
       fetcher.data &&
+      typeof fetcher.data === "object" &&
       "error" in fetcher.data &&
       fetcher.state === "idle"
     ) {
-      alert(`Failed to create document: ${fetcher.data.error}`);
+      const errorData = fetcher.data as { error: string };
+      alert(`Failed to create document: ${errorData.error}`);
     }
   }, [fetcher.data, fetcher.state, navigate]);
 
@@ -199,13 +203,8 @@ export default function Index() {
 
     try {
       // Call Remix API route
-      // Normalize 0.0.0.0 to localhost for client connections
-      let host = window.location.origin;
-      if (host.includes("0.0.0.0")) {
-        host = host.replace("0.0.0.0", "localhost");
-      }
       const response = await fetch(
-        `${host}/api/documents/${encodeURIComponent(oldSlug)}`,
+        getApiUrl(`/api/documents/${encodeURIComponent(oldSlug)}`),
         {
           method: "PATCH",
           headers: {
@@ -216,7 +215,7 @@ export default function Index() {
       );
 
       if (!response.ok) {
-        const result = await response.json();
+        const result = (await response.json()) as { error?: string };
         setSlugError(result.error || "Failed to update slug");
         return;
       }
@@ -243,13 +242,8 @@ export default function Index() {
 
     try {
       // Call Remix API route
-      // Normalize 0.0.0.0 to localhost for client connections
-      let host = window.location.origin;
-      if (host.includes("0.0.0.0")) {
-        host = host.replace("0.0.0.0", "localhost");
-      }
       const response = await fetch(
-        `${host}/api/documents/${encodeURIComponent(slug)}/archive`,
+        getApiUrl(`/api/documents/${encodeURIComponent(slug)}/archive`),
         {
           method: "POST",
         }

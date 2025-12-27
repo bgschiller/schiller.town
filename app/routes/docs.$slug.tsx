@@ -1,8 +1,4 @@
-import type {
-  LoaderFunction,
-  LoaderFunctionArgs,
-  MetaFunction,
-} from "partymix";
+import type { LoaderFunction, MetaFunction } from "partymix";
 import { useLoaderData, Form, useNavigate } from "@remix-run/react";
 import WhosHere from "../components/whos-here";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -18,12 +14,19 @@ import {
   getProvider,
 } from "~/utils/collaboration.client";
 import { MergeAdjacentLists } from "~/utils/merge-adjacent-lists";
-import { requireAuth } from "~/utils/session.server";
+import { createAuthenticatedLoader } from "~/utils/session.server";
+import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useRef, useState, useMemo } from "react";
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  const slug =
+    data && typeof data === "object" && "slug" in data
+      ? (data.slug as string)
+      : null;
   return [
-    { title: data?.slug ? `${data.slug} - Collaborative Doc` : "Document" },
+    {
+      title: slug ? `${slug} - Collaborative Doc` : "Document",
+    },
     {
       name: "description",
       content: "Real-time collaborative document editing",
@@ -31,48 +34,49 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
-export const loader: LoaderFunction = async function ({
-  context,
-  request,
-  params,
-}: LoaderFunctionArgs) {
-  const userName = await requireAuth(request, context.env.SESSION_SECRET, "/");
-  const slug = params.slug;
+export const loader: LoaderFunction = createAuthenticatedLoader(
+  async ({ request, params, userName }) => {
+    const slug = params.slug;
 
-  if (!slug) {
-    throw new Response("Not Found", { status: 404 });
-  }
-
-  // Fetch the document to get its ID
-  // Always use the current request's origin - works locally and through Cloudflare tunnel
-  const url = new URL(request.url);
-  const host = `${url.protocol}//${url.host}`;
-
-  try {
-    // Call Remix API route
-    const response = await fetch(
-      `${host}/api/documents/${encodeURIComponent(slug)}`
-    );
-
-    if (!response.ok) {
-      throw new Response("Document Not Found", { status: 404 });
+    if (!slug) {
+      throw new Response("Not Found", { status: 404 });
     }
 
-    const document = await response.json();
+    // Fetch the document to get its ID
+    // Always use the current request's origin - works locally and through Cloudflare tunnel
+    const url = new URL(request.url);
+    const host = `${url.protocol}//${url.host}`;
 
-    return Response.json({
-      userName,
-      slug,
-      documentId: document.id,
-    });
-  } catch (error) {
-    throw new Response("Document Not Found", { status: 404 });
+    try {
+      // Call Remix API route
+      const response = await fetch(
+        `${host}/api/documents/${encodeURIComponent(slug)}`
+      );
+
+      if (!response.ok) {
+        throw new Response("Document Not Found", { status: 404 });
+      }
+
+      const document = (await response.json()) as { id: string };
+
+      return Response.json({
+        userName,
+        slug,
+        documentId: document.id,
+      });
+    } catch (error) {
+      throw new Response("Document Not Found", { status: 404 });
+    }
   }
-};
+);
 
 export default function DocPage() {
-  const { userName, slug, partykitHost, documentId } =
-    useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const { userName, slug, documentId } = data as unknown as {
+    userName: string;
+    slug: string;
+    documentId: string;
+  };
   const navigate = useNavigate();
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const contentEditorRef = useRef<any>(null);
@@ -193,7 +197,7 @@ export default function DocPage() {
         attributes: {
           class: "title-editor",
         },
-        handleKeyDown: (view, event) => {
+        handleKeyDown: (_view: any, event: KeyboardEvent) => {
           // When Enter is pressed in title, focus the content editor instead
           if (event.key === "Enter") {
             event.preventDefault();
@@ -315,13 +319,8 @@ export default function DocPage() {
         return;
       }
 
-      // Call Remix API route to organize items
-      // Normalize 0.0.0.0 to localhost for client connections
-      let host = window.location.origin;
-      if (host.includes("0.0.0.0")) {
-        host = host.replace("0.0.0.0", "localhost");
-      }
-      const response = await fetch(`${host}/api/organize-list`, {
+      // Call Remix API route
+      const response = await fetch(getApiUrl("/api/organize-list"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -333,7 +332,8 @@ export default function DocPage() {
         throw new Error("Failed to organize list");
       }
 
-      const { organized } = await response.json();
+      const result = (await response.json()) as { organized: string[] };
+      const { organized } = result;
 
       if (organized.length === 0) {
         alert("No valid items to organize");
@@ -555,12 +555,7 @@ export default function DocPage() {
 
       try {
         // Call Remix API route
-        // Normalize 0.0.0.0 to localhost for client connections
-        let host = window.location.origin;
-        if (host.includes("0.0.0.0")) {
-          host = host.replace("0.0.0.0", "localhost");
-        }
-        await fetch(`${host}/api/documents/${encodeURIComponent(slug)}`, {
+        await fetch(getApiUrl(`/api/documents/${encodeURIComponent(slug)}`), {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -590,7 +585,7 @@ export default function DocPage() {
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [titleEditor, contentEditor, slug, partykitHost]);
+  }, [titleEditor, contentEditor, slug]);
 
   return (
     <>

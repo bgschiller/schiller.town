@@ -1,4 +1,12 @@
 import { createCookieSessionStorage, redirect } from "partymix";
+import type { LoaderFunctionArgs } from "partymix";
+
+// Type for environment variables with session support
+export type SessionEnv = {
+  SESSION_SECRET: string;
+  HOUSEHOLD_PASSWORD: string;
+  [key: string]: any;
+};
 
 // Create session storage with a function that will use the actual secret at runtime
 export function getSessionStorage(sessionSecret: string) {
@@ -74,4 +82,23 @@ export function verifyPassword(
   householdPassword: string
 ): boolean {
   return password === householdPassword;
+}
+
+// Higher-order function to create authenticated loaders
+// Automatically handles auth check and injects userName into loader data
+export function createAuthenticatedLoader<T extends Record<string, any>>(
+  loaderFn: (
+    args: LoaderFunctionArgs & { userName: string }
+  ) => Promise<Response> | Response
+) {
+  return async (args: LoaderFunctionArgs) => {
+    const { request, context } = args;
+    const url = new URL(request.url);
+    const userName = await requireAuth(
+      request,
+      context.env.SESSION_SECRET,
+      url.pathname
+    );
+    return loaderFn({ ...args, userName });
+  };
 }
