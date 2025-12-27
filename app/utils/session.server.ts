@@ -86,6 +86,8 @@ export function verifyPassword(
 
 // Higher-order function to create authenticated loaders
 // Automatically handles auth check and injects userName into loader data
+// NOTE: This must be called INSIDE the loader function, not at module level,
+// to avoid being included in client bundles
 export function createAuthenticatedLoader<T extends Record<string, any>>(
   loaderFn: (
     args: LoaderFunctionArgs & { userName: string }
@@ -101,4 +103,17 @@ export function createAuthenticatedLoader<T extends Record<string, any>>(
     );
     return loaderFn({ ...args, userName });
   };
+}
+
+// Alternative: Direct auth helper that can be called inside loaders
+// Use this instead of createAuthenticatedLoader for Remix/PartyMix compatibility
+export async function authenticateLoader(args: LoaderFunctionArgs) {
+  const { request } = args;
+  const url = new URL(request.url);
+  const userName = await requireAuth(
+    request,
+    args.context.env.SESSION_SECRET,
+    url.pathname
+  );
+  return userName;
 }

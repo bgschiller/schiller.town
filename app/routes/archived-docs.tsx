@@ -1,6 +1,6 @@
 import type { LoaderFunction, MetaFunction } from "partymix";
 import { useLoaderData, Form, useNavigate } from "@remix-run/react";
-import { createAuthenticatedLoader } from "~/utils/session.server";
+import { authenticateLoader } from "~/utils/session.server";
 import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 
@@ -21,11 +21,10 @@ type Document = {
   archived: boolean;
 };
 
-export const loader: LoaderFunction = createAuthenticatedLoader(
-  async ({ userName }) => {
-    return Response.json({ userName });
-  }
-);
+export const loader: LoaderFunction = async function (args) {
+  const userName = await authenticateLoader(args);
+  return Response.json({ userName });
+};
 
 export default function ArchivedDocuments() {
   const data = useLoaderData<typeof loader>();

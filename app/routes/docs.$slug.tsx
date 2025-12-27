@@ -14,7 +14,7 @@ import {
   getProvider,
 } from "~/utils/collaboration.client";
 import { MergeAdjacentLists } from "~/utils/merge-adjacent-lists";
-import { createAuthenticatedLoader } from "~/utils/session.server";
+import { authenticateLoader } from "~/utils/session.server";
 import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useRef, useState, useMemo } from "react";
 
@@ -34,41 +34,41 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
-export const loader: LoaderFunction = createAuthenticatedLoader(
-  async ({ request, params, userName }) => {
-    const slug = params.slug;
+export const loader: LoaderFunction = async function (args) {
+  const { request, params } = args;
+  const userName = await authenticateLoader(args);
+  const slug = params.slug;
 
-    if (!slug) {
-      throw new Response("Not Found", { status: 404 });
-    }
+  if (!slug) {
+    throw new Response("Not Found", { status: 404 });
+  }
 
-    // Fetch the document to get its ID
-    // Always use the current request's origin - works locally and through Cloudflare tunnel
-    const url = new URL(request.url);
-    const host = `${url.protocol}//${url.host}`;
+  // Fetch the document to get its ID
+  // Always use the current request's origin - works locally and through Cloudflare tunnel
+  const url = new URL(request.url);
+  const host = `${url.protocol}//${url.host}`;
 
-    try {
-      // Call Remix API route
-      const response = await fetch(
-        `${host}/api/documents/${encodeURIComponent(slug)}`
-      );
+  try {
+    // Call Remix API route
+    const response = await fetch(
+      `${host}/api/documents/${encodeURIComponent(slug)}`
+    );
 
-      if (!response.ok) {
-        throw new Response("Document Not Found", { status: 404 });
-      }
-
-      const document = (await response.json()) as { id: string };
-
-      return Response.json({
-        userName,
-        slug,
-        documentId: document.id,
-      });
-    } catch (error) {
+    if (!response.ok) {
       throw new Response("Document Not Found", { status: 404 });
     }
+
+    const document = (await response.json()) as { id: string };
+
+    return Response.json({
+      userName,
+      slug,
+      documentId: document.id,
+    });
+  } catch (error) {
+    throw new Response("Document Not Found", { status: 404 });
   }
-);
+};
 
 export default function DocPage() {
   const data = useLoaderData<typeof loader>();

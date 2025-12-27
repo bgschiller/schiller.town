@@ -1,6 +1,6 @@
 import type { LoaderFunction, MetaFunction } from "partymix";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { createAuthenticatedLoader } from "~/utils/session.server";
+import { authenticateLoader } from "~/utils/session.server";
 import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 import type { StarChart } from "~/../../party/star-chart";
@@ -13,11 +13,10 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export const loader: LoaderFunction = createAuthenticatedLoader(
-  async ({ userName }) => {
-    return Response.json({ userName });
-  }
-);
+export const loader: LoaderFunction = async function (args) {
+  const userName = await authenticateLoader(args);
+  return Response.json({ userName });
+};
 
 export default function StarChartPage() {
   useLoaderData<typeof loader>(); // Ensure auth is checked

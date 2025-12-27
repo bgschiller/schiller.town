@@ -40,44 +40,38 @@ const response = await fetch(`${host}/api/documents`);
 
 ### New Utilities Created
 
-#### 1. `createAuthenticatedLoader` (server-side)
+#### 1. `authenticateLoader` (server-side)
 **File:** `app/utils/session.server.ts`
 
-A higher-order function that wraps loaders with automatic authentication:
+A helper function that handles authentication inside loader functions:
 
 ```typescript
-export function createAuthenticatedLoader<T extends Record<string, any>>(
-  loaderFn: (
-    args: LoaderFunctionArgs & { userName: string }
-  ) => Promise<Response> | Response
-) {
-  return async (args: LoaderFunctionArgs) => {
-    const { request, context } = args;
-    const url = new URL(request.url);
-    const userName = await requireAuth(
-      request,
-      context.env.SESSION_SECRET,
-      url.pathname
-    );
-    return loaderFn({ ...args, userName });
-  };
+export async function authenticateLoader(args: LoaderFunctionArgs) {
+  const { request } = args;
+  const url = new URL(request.url);
+  const userName = await requireAuth(
+    request,
+    args.context.env.SESSION_SECRET,
+    url.pathname
+  );
+  return userName;
 }
 ```
 
 **Benefits:**
 - No need to manually access `SESSION_SECRET`
 - Automatic redirect to login with proper `next` parameter
-- `userName` is automatically injected into loader args
+- Returns authenticated `userName` directly
 - Consistent error handling across all routes
+- Works with Remix/PartyMix module bundling (server-only code)
 
 **Usage:**
 ```typescript
-// AFTER: Clean and declarative
-export const loader: LoaderFunction = createAuthenticatedLoader(
-  async ({ userName }) => {
-    return Response.json({ userName });
-  }
-);
+// AFTER: Clean and simple
+export const loader: LoaderFunction = async function (args) {
+  const userName = await authenticateLoader(args);
+  return Response.json({ userName });
+};
 ```
 
 #### 2. `getApiUrl` and `getApiHost` (client-side)
@@ -178,7 +172,7 @@ export const loader: LoaderFunction = createAuthenticatedLoader(
 );
 ```
 
-**Lines saved:** 3-4 per route (multiplied by 4 routes = ~16 lines)
+**Lines saved:** 2-3 per route (multiplied by 4 routes = ~10 lines)
 
 ### API Calls
 
@@ -201,9 +195,10 @@ const response = await fetch(getApiUrl("/api/documents"));
 ## Impact
 
 ### Code Reduction
-- **~56 lines removed** across all routes
+- **~50 lines removed** across all routes
 - More consistent patterns across the codebase
 - Easier to maintain and modify auth logic
+- Compatible with Remix/PartyMix bundling
 
 ### Maintainability Benefits
 1. **Single Source of Truth:** Auth logic lives in one place
@@ -237,18 +232,18 @@ If you need to add a new protected route:
 
 1. Import the utilities:
 ```typescript
-import { createAuthenticatedLoader } from "~/utils/session.server";
+import { authenticateLoader } from "~/utils/session.server";
 import { getApiUrl } from "~/utils/api.client";
 ```
 
 2. Define your loader:
 ```typescript
-export const loader = createAuthenticatedLoader(
-  async ({ userName, request, params, context }) => {
-    // Your loader logic here
-    // userName is automatically available!
-  }
-);
+export const loader: LoaderFunction = async function (args) {
+  const userName = await authenticateLoader(args);
+  // Your loader logic here
+  // userName is now available!
+  return Response.json({ userName });
+};
 ```
 
 3. Use `getApiUrl` for client-side API calls:
