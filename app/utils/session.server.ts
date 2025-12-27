@@ -53,7 +53,7 @@ export async function requireAuth(
 ) {
   const userName = await getUserName(request, sessionSecret);
   if (!userName) {
-    const searchParams = new URLSearchParams([["redirectTo", redirectTo]]);
+    const searchParams = new URLSearchParams([["next", redirectTo]]);
     throw redirect(`/login?${searchParams}`);
   }
   return userName;

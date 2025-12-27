@@ -10,10 +10,12 @@ import {
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const userName = await getUserName(request, context.env.SESSION_SECRET);
   if (userName) {
-    // Already logged in, redirect to home
+    // Already logged in, redirect to next page or home
+    const url = new URL(request.url);
+    const next = url.searchParams.get("next") || "/";
     return new Response(null, {
       status: 302,
-      headers: { Location: "/" },
+      headers: { Location: next },
     });
   }
   return json({});
@@ -23,7 +25,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
   const password = formData.get("password");
   const name = formData.get("name");
-  const redirectTo = formData.get("redirectTo") || "/";
+  const next = formData.get("next") || "/";
 
   if (typeof password !== "string" || typeof name !== "string") {
     return json(
@@ -46,7 +48,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   return createUserSession(
     name.trim(),
-    redirectTo.toString(),
+    next.toString(),
     context.env.SESSION_SECRET
   );
 }
@@ -54,7 +56,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 export default function Login() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/";
+  const next = searchParams.get("next") || "/";
 
   return (
     <>
@@ -177,7 +179,7 @@ export default function Login() {
           )}
 
           <Form method="post">
-            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <input type="hidden" name="next" value={next} />
 
             <div className="form-group">
               <label htmlFor="name" className="form-label">
