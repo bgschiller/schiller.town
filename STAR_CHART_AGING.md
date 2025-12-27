@@ -52,6 +52,7 @@ Since this is a breaking change to the data structure, the dev database should b
 ## Example Timeline
 
 1. **Monday 9am**: Child earns 20 squares and exchanges for TV time
+
    - Exchange created with `usedDate: "2025-12-26"`
    - Appears in history section
 

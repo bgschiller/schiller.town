@@ -7,10 +7,12 @@ const CHART_ID = "everett-potty";
 
 function getStorageUrl(request: Request, path: string = "") {
   const url = new URL(request.url);
-  // In development (wrangler dev), use localhost
-  // In production, use the actual host
-  const isDev = url.hostname === "schiller.town" && url.port === "";
-  const host = isDev ? "http://127.0.0.1:8787" : `${url.protocol}//${url.host}`;
+  // In production, use the actual request host
+  // In development (localhost or 127.0.0.1), use the local dev server
+  const isProduction = url.hostname === "schiller.town";
+  const host = isProduction
+    ? `${url.protocol}//${url.host}`
+    : "http://127.0.0.1:8787";
   return `${host}/parties/star-chart-server/default${path}`;
 }
 
@@ -46,7 +48,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   const chart = await response.json();
-  return json(chart);
+
+  // Ensure chart has all required properties with defaults
+  const validatedChart: StarChart = {
+    id: chart.id || CHART_ID,
+    type: chart.type || "potty-training",
+    title: chart.title || "Everett's Potty Chart",
+    totalSquares: chart.totalSquares || 0,
+    exchanges: Array.isArray(chart.exchanges) ? chart.exchanges : [],
+    createdAt: chart.createdAt || Date.now(),
+    updatedAt: chart.updatedAt || Date.now(),
+  };
+
+  return json(validatedChart);
 }
 
 // POST /api/star-chart - handle actions (add, subtract, exchange)
@@ -58,11 +72,35 @@ export async function action({ request }: ActionFunctionArgs) {
   const storageUrl = getStorageUrl(request, `/storage-get/${CHART_ID}`);
   const response = await fetch(storageUrl);
 
-  if (!response.ok) {
-    return json({ error: "Chart not found" }, { status: 404 });
+  let rawChart;
+
+  if (response.status === 404) {
+    // Chart doesn't exist, create it
+    rawChart = {
+      id: CHART_ID,
+      type: "potty-training",
+      title: "Everett's Potty Chart",
+      totalSquares: 0,
+      exchanges: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  } else if (!response.ok) {
+    return json({ error: "Failed to fetch star chart" }, { status: 500 });
+  } else {
+    rawChart = await response.json();
   }
 
-  const chart: StarChart = await response.json();
+  // Ensure chart has all required properties with defaults
+  const chart: StarChart = {
+    id: rawChart.id || CHART_ID,
+    type: rawChart.type || "potty-training",
+    title: rawChart.title || "Everett's Potty Chart",
+    totalSquares: rawChart.totalSquares || 0,
+    exchanges: Array.isArray(rawChart.exchanges) ? rawChart.exchanges : [],
+    createdAt: rawChart.createdAt || Date.now(),
+    updatedAt: rawChart.updatedAt || Date.now(),
+  };
 
   // Calculate current active squares (total - exchanged)
   const totalExchanged = chart.exchanges.reduce(

@@ -21,6 +21,7 @@ rm -rf .wrangler/state/v3/d1/miniflare-D*StarChartServer*
 ## After Reset
 
 1. Restart the dev server if it's running:
+
    ```bash
    # Stop the current server (Ctrl+C)
    pnpm run dev
@@ -35,6 +36,7 @@ rm -rf .wrangler/state/v3/d1/miniflare-D*StarChartServer*
 For production, since this is a household app with minimal data:
 
 1. You can either:
+
    - Clear the production data manually (if there's important historical data)
    - Or just deploy - new exchanges will work fine, old ones without `usedDate` will error when filtered
 

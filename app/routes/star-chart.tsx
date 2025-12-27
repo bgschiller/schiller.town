@@ -139,7 +139,7 @@ export default function StarChartPage() {
   };
 
   const handleExchange = () => {
-    if (!chart) return;
+    if (!chart || !Array.isArray(chart.exchanges)) return;
 
     console.log("Chart line 151:", chart);
     const totalExchanged = chart.exchanges.reduce(
@@ -168,16 +168,17 @@ export default function StarChartPage() {
 
   // Calculate which squares are exchanged
   const isSquareExchanged = (squareNum: number): boolean => {
-    if (!chart) return false;
+    if (!chart || !Array.isArray(chart.exchanges)) return false;
     return chart.exchanges.some(
       (ex) => squareNum >= ex.squareRange[0] && squareNum <= ex.squareRange[1]
     );
   };
 
   // Calculate active squares for button states
-  const totalExchanged = chart
-    ? chart.exchanges.reduce((sum, ex) => sum + ex.squaresExchanged, 0)
-    : 0;
+  const totalExchanged =
+    chart && Array.isArray(chart.exchanges)
+      ? chart.exchanges.reduce((sum, ex) => sum + ex.squaresExchanged, 0)
+      : 0;
   const activeSquares = totalSquares - totalExchanged;
 
   // Calculate number of rows to display (at least show 1 row)
@@ -455,39 +456,54 @@ export default function StarChartPage() {
             <div className="stat-item">
               <span className="stat-label">TV Time Earned</span>
               <span className="stat-value">
-                {chart ? chart.exchanges.length * 20 : 0} min
+                {chart && Array.isArray(chart.exchanges)
+                  ? chart.exchanges.length * 20
+                  : 0}{" "}
+                min
               </span>
             </div>
           </div>
 
           <div className="grid-container">
-            {Array.from({ length: numRows }, (_, rowIndex) => (
-              <div key={rowIndex} className="grid-row">
-                <div className="squares-row">
-                  {Array.from({ length: 20 }, (_, colIndex) => {
-                    const squareNum = rowIndex * 20 + colIndex + 1;
-                    const isExchanged = isSquareExchanged(squareNum);
-                    const isActive = squareNum <= totalSquares && !isExchanged;
+            {Array.from({ length: numRows }, (_, rowIndex) => {
+              // Check if entire row is exchanged (all 20 squares in this row)
+              const rowStartSquare = rowIndex * 20 + 1;
+              const allSquaresExchanged = Array.from(
+                { length: 20 },
+                (_, i) => rowStartSquare + i
+              ).every((squareNum) => isSquareExchanged(squareNum));
 
-                    return (
-                      <div
-                        key={colIndex}
-                        className={`square ${
-                          isExchanged
-                            ? "exchanged"
-                            : isActive
-                            ? "active"
-                            : "empty"
-                        }`}
-                      >
-                        {isActive && "■"}
-                      </div>
-                    );
-                  })}
+              return (
+                <div key={rowIndex} className="grid-row">
+                  <div className="squares-row">
+                    {Array.from({ length: 20 }, (_, colIndex) => {
+                      const squareNum = rowIndex * 20 + colIndex + 1;
+                      const isExchanged = isSquareExchanged(squareNum);
+                      const isActive =
+                        squareNum <= totalSquares && !isExchanged;
+
+                      return (
+                        <div
+                          key={colIndex}
+                          className={`square ${
+                            isExchanged
+                              ? "exchanged"
+                              : isActive
+                              ? "active"
+                              : "empty"
+                          }`}
+                        >
+                          {isActive && "■"}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="row-star">
+                    {allSquaresExchanged ? "⭐" : "☆"}
+                  </span>
                 </div>
-                <span className="row-star">⭐</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="buttons-container">
