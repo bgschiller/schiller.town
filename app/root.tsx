@@ -9,7 +9,6 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 import ViewportSizeLayout from "./components/ViewportSizeLayout";
-import TouchScrollControl from "./components/TouchScrollControl";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -51,6 +50,7 @@ export default function App() {
 
           html, body {
             width: 100%;
+            height: 100%;
             overscroll-behavior: none;
           }
 
@@ -62,7 +62,6 @@ export default function App() {
         />
       </head>
       <body>
-        <TouchScrollControl />
         <ViewportSizeLayout>
           <Outlet />
         </ViewportSizeLayout>

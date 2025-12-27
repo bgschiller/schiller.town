@@ -910,7 +910,7 @@ export default function DocPage() {
         .command-bar-wrapper {
           width: 100%;
           z-index: 10;
-          padding: 0.5rem;
+          padding-top: 0.5rem;
           padding-bottom: var(--safe-padding-bottom);
           display: flex;
           background: white;
