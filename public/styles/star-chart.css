@@ -131,7 +131,7 @@
 }
 
 .square.exchanged::after {
-  content: '✓';
+  content: "✓";
   position: absolute;
   font-size: clamp(0.875rem, 2.5vw, 1.5rem);
 }
