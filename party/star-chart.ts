@@ -99,19 +99,35 @@ export class StarChartServer extends Server {
   }
 
   /**
-   * Age out completed exchanges that are past end of day.
+   * Age out completed exchanges that are past end of day (in Pacific time).
    * Returns true if any exchanges were removed.
    */
   private ageOutOldExchanges(chart: StarChart): boolean {
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    // Get today's date in Pacific time
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const todayStr = formatter.format(new Date()); // Returns YYYY-MM-DD
 
     const initialLength = chart.exchanges.length;
+
+    // Calculate total squares in exchanges that will be removed
+    const squaresToRemove = chart.exchanges
+      .filter((exchange) => exchange.usedDate < todayStr)
+      .reduce((sum, exchange) => sum + exchange.squaresExchanged, 0);
 
     // Remove exchanges where usedDate is before today
     chart.exchanges = chart.exchanges.filter((exchange) => {
       return exchange.usedDate >= todayStr;
     });
+
+    // Reduce totalSquares by the number of exchanged squares that were aged out
+    if (squaresToRemove > 0) {
+      chart.totalSquares = Math.max(0, chart.totalSquares - squaresToRemove);
+    }
 
     return chart.exchanges.length < initialLength;
   }

@@ -139,9 +139,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const startSquare = totalExchanged + 1;
     const endSquare = totalExchanged + 20;
 
-    // Get current date in ISO format (YYYY-MM-DD)
-    const now = new Date();
-    const usedDate = now.toISOString().split("T")[0];
+    // Get current date in Pacific time (YYYY-MM-DD format)
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const usedDate = formatter.format(new Date()); // Returns YYYY-MM-DD
 
     const newExchange: StarChartExchange = {
       timestamp: Date.now(),

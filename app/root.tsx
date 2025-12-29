@@ -12,6 +12,7 @@ import ViewportSizeLayout from "./components/ViewportSizeLayout";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
+  { rel: "stylesheet", href: "/styles/root.css" },
 ];
 
 export default function App() {
@@ -25,41 +26,6 @@ export default function App() {
         />
         <Meta />
         <Links />
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #1a1a1a;
-            background: #ffffff;
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-          }
-
-          :root {
-            --max-width: 800px;
-            --safe-padding-bottom: max(calc(env(safe-area-inset-bottom) - 8px), 16px);
-          }
-
-          html, body {
-            width: 100%;
-            height: 100%;
-            overscroll-behavior: none;
-          }
-
-          #root-viewport {
-            height: 100%;
-          }
-        `,
-          }}
-        />
       </head>
       <body>
         <ViewportSizeLayout>
