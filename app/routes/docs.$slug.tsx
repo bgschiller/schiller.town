@@ -148,6 +148,10 @@ export default function DocPage() {
   // Use documentId for the collaboration room so slug changes don't break the connection
   useEffect(() => {
     setIsClient(true);
+    // Reset sync state when document changes
+    setIsSynced(false);
+    setYdoc(null);
+
     const doc = getYDoc();
     const provider = getProvider(documentId);
     if (doc && provider) {

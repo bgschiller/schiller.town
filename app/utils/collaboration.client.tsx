@@ -8,6 +8,20 @@ let provider: YPartyKitProvider | null = null;
 let awareness: awarenessProtocol.Awareness | null = null;
 let currentRoom: string | null = null;
 
+// Cleanup function to properly destroy existing connections
+function cleanup() {
+  if (provider) {
+    provider.destroy();
+    provider = null;
+  }
+  if (ydoc) {
+    ydoc.destroy();
+    ydoc = null;
+  }
+  awareness = null;
+  currentRoom = null;
+}
+
 // Initialize only when running in the browser
 function getYDoc() {
   if (typeof window === "undefined") return null;
@@ -22,16 +36,9 @@ function getYDoc() {
 function getProvider(room: string) {
   if (typeof window === "undefined") return null;
 
-  // If room changed, cleanup old provider
-  if (provider && currentRoom !== room) {
-    provider.destroy();
-    provider = null;
-    // Reset the doc and awareness for a new room
-    if (ydoc) {
-      ydoc.destroy();
-      ydoc = null;
-      awareness = null;
-    }
+  // If room changed, cleanup old provider completely
+  if (currentRoom !== null && currentRoom !== room) {
+    cleanup();
   }
 
   if (!provider) {
@@ -55,5 +62,5 @@ function getProvider(room: string) {
   return provider;
 }
 
-export { Collaboration, getProvider, getYDoc };
+export { Collaboration, getProvider, getYDoc, cleanup };
 export { ydoc, provider };
