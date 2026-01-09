@@ -154,8 +154,10 @@ export default function DocPage() {
     setIsSynced(false);
     setYdoc(null);
 
-    const doc = getYDoc();
+    // IMPORTANT: Get provider first (it handles cleanup if room changed)
+    // then get the ydoc reference to ensure they're in sync
     const provider = getProvider(documentId);
+    const doc = getYDoc();
     if (doc && provider) {
       setYdoc(doc);
 

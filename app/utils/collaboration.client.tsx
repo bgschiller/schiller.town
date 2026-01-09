@@ -39,6 +39,9 @@ function getProvider(room: string) {
   // If room changed, cleanup old provider completely
   if (currentRoom !== null && currentRoom !== room) {
     cleanup();
+    // Force recreation by ensuring we get a fresh ydoc
+    const doc = getYDoc();
+    if (!doc || !awareness) return null;
   }
 
   if (!provider) {
