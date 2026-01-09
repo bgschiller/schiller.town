@@ -5,6 +5,40 @@ import type { StarChart, StarChartExchange } from "~/../../party/star-chart";
 // Hardcoded chart ID for now - can support multiple charts in the future
 const CHART_ID = "everett-potty";
 
+/**
+ * Age out completed exchanges that are past end of day (in Pacific time).
+ * Returns true if any exchanges were removed.
+ */
+function ageOutOldExchanges(chart: StarChart): boolean {
+  // Get today's date in Pacific time
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayStr = formatter.format(new Date()); // Returns YYYY-MM-DD
+
+  const initialLength = chart.exchanges.length;
+
+  // Calculate total squares in exchanges that will be removed
+  const squaresToRemove = chart.exchanges
+    .filter((exchange) => exchange.usedDate < todayStr)
+    .reduce((sum, exchange) => sum + exchange.squaresExchanged, 0);
+
+  // Remove exchanges where usedDate is before today
+  chart.exchanges = chart.exchanges.filter((exchange) => {
+    return exchange.usedDate >= todayStr;
+  });
+
+  // Reduce totalSquares by the number of exchanged squares that were aged out
+  if (squaresToRemove > 0) {
+    chart.totalSquares = Math.max(0, chart.totalSquares - squaresToRemove);
+  }
+
+  return chart.exchanges.length < initialLength;
+}
+
 function getStorageUrl(request: Request, path: string = "") {
   const url = new URL(request.url);
   // In production, use the actual request host
@@ -60,6 +94,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     updatedAt: chart.updatedAt || Date.now(),
   };
 
+  // Age out old exchanges client-side as well (in case PartyServer cleanup didn't trigger)
+  const wasModified = ageOutOldExchanges(validatedChart);
+  if (wasModified) {
+    validatedChart.updatedAt = Date.now();
+    // Save the cleaned chart back to storage
+    const putUrl = getStorageUrl(request, "/storage-put");
+    await fetch(putUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: validatedChart }),
+    });
+  }
+
   return json(validatedChart);
 }
 
@@ -101,6 +148,9 @@ export async function action({ request }: ActionFunctionArgs) {
     createdAt: rawChart.createdAt || Date.now(),
     updatedAt: rawChart.updatedAt || Date.now(),
   };
+
+  // Age out old exchanges before performing any actions
+  ageOutOldExchanges(chart);
 
   // Calculate current active squares (total - exchanged)
   const totalExchanged = chart.exchanges.reduce(
