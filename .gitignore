@@ -5,5 +5,6 @@ build
 public/build
 .env
 .env.local
+.dev.vars
 .playwright-mcp
 .wrangler
