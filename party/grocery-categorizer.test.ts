@@ -77,3 +77,13 @@ test("unknown item should be mapped to Other", () => {
   const result = categorizeItem("some weird unknown item xyz123");
   assert.strictEqual(result, "Other");
 });
+
+test("nuggies should be mapped to Frozen Foods", () => {
+  const result = categorizeItem("nuggies");
+  assert.strictEqual(result, "Frozen Foods");
+});
+
+test("Veggie dogs should be mapped to Meat, Seafood & Deli", () => {
+  const result = categorizeItem("Veggie dogs");
+  assert.strictEqual(result, "Meat, Seafood & Deli");
+});
