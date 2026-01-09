@@ -35,7 +35,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export const loader: LoaderFunction = async function (args) {
-  const { request, params } = args;
+  const { request, params, context } = args;
+  const env = context.env as any;
   const userName = await authenticateLoader(args);
   const slug = params.slug;
 
@@ -44,9 +45,10 @@ export const loader: LoaderFunction = async function (args) {
   }
 
   // Fetch the document to get its ID
-  // Always use the current request's origin - works locally and through Cloudflare tunnel
-  const url = new URL(request.url);
-  const host = `${url.protocol}//${url.host}`;
+  // With custom domain routing in wrangler.toml, both request.url and Host header
+  // show the production domain even in local dev. Use environment variable instead.
+  const isLocal = env.IS_LOCAL_DEV === "true";
+  const host = isLocal ? `http://localhost:8787` : `http://schiller.town`;
 
   try {
     // Call Remix API route

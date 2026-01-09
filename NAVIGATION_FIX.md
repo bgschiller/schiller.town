@@ -103,3 +103,4 @@ To verify the fix:
 - Monitor for any edge cases with rapid document switching
 - Consider adding loading indicators during document transitions
 - Could potentially optimize by preloading adjacent documents
+

@@ -2,15 +2,20 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "partymix";
 import { json } from "@remix-run/react";
 import type { Document } from "./api.documents";
 
+type Env = {
+  IS_LOCAL_DEV?: string;
+};
+
 // Helper to get PartyServer storage URL
-function getStorageUrl(request: Request, path: string = "") {
-  const url = new URL(request.url);
-  const host = `${url.protocol}//${url.host}`;
+function getStorageUrl(request: Request, env: Env, path: string = "") {
+  const isLocal = env.IS_LOCAL_DEV === "true";
+  const host = isLocal ? `http://localhost:8787` : `http://schiller.town`;
   return `${host}/parties/documents-server/default${path}`;
 }
 
 // GET /api/documents/:slug
-export async function loader({ request, params }: LoaderFunctionArgs) {
+export async function loader({ request, params, context }: LoaderFunctionArgs) {
+  const env = context.env as Env;
   const slug = params.slug;
 
   if (!slug) {
@@ -20,6 +25,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const decodedSlug = decodeURIComponent(slug);
   const storageUrl = getStorageUrl(
     request,
+    env,
     `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
   );
   const response = await fetch(storageUrl);
@@ -35,7 +41,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // PUT /api/documents/:slug (update)
 // PATCH /api/documents/:slug (rename)
 // DELETE /api/documents/:slug (delete)
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
+  const env = context.env as Env;
   const slug = params.slug;
   const method = request.method;
 
@@ -50,6 +57,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Get existing document by slug
     const getUrl = getStorageUrl(
       request,
+      env,
       `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
@@ -70,7 +78,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     };
 
     // Update in storage (using id as key)
-    const storageUrl = getStorageUrl(request, `/storage-put`);
+    const storageUrl = getStorageUrl(request, env, `/storage-put`);
     const response = await fetch(storageUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,6 +116,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // No change needed, just return existing doc
       const getUrl = getStorageUrl(
         request,
+        env,
         `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
       );
       const response = await fetch(getUrl);
@@ -118,6 +127,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Check if new slug already exists
     const checkUrl = getStorageUrl(
       request,
+      env,
       `/storage-get-by-slug/${encodeURIComponent(newSlug)}`
     );
     const checkResponse = await fetch(checkUrl);
@@ -131,6 +141,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Get old document
     const getUrl = getStorageUrl(
       request,
+      env,
       `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
@@ -150,7 +161,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     };
 
     // Simply update the document in place (storage key is id, which doesn't change)
-    const putUrl = getStorageUrl(request, `/storage-put`);
+    const putUrl = getStorageUrl(request, env, `/storage-put`);
     await fetch(putUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -165,6 +176,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Get document to check if it's archived
     const getUrl = getStorageUrl(
       request,
+      env,
       `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
     );
     const getResponse = await fetch(getUrl);
@@ -185,6 +197,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Delete from storage using id
     const deleteUrl = getStorageUrl(
       request,
+      env,
       `/storage-delete/${encodeURIComponent(doc.id)}`
     );
     const response = await fetch(deleteUrl, { method: "POST" });

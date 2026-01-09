@@ -8,7 +8,7 @@
     "dev": "remix dev --manual -c \"pnpm start\"",
     "build": "rimraf build && rimraf public/build && remix build",
     "check": "tsc --noEmit",
-    "start": "wrangler dev",
+    "start": "wrangler dev --local",
     "deploy": "pnpm run build && wrangler deploy"
   },
   "dependencies": {

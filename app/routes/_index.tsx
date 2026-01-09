@@ -38,7 +38,8 @@ export const loader: LoaderFunction = async function (args) {
   return Response.json({ userName });
 };
 
-export const action: ActionFunction = async function ({ request }) {
+export const action: ActionFunction = async function ({ request, context }) {
+  const env = context.env as { IS_LOCAL_DEV?: string };
   const formData = await request.formData();
   const action = formData.get("action");
 
@@ -47,9 +48,9 @@ export const action: ActionFunction = async function ({ request }) {
     const slug = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     try {
-      // Call Remix API route instead of PartyKit directly
-      const url = new URL(request.url);
-      const host = `${url.protocol}//${url.host}`;
+      // Call Remix API route - use environment variable to detect local dev
+      const isLocal = env.IS_LOCAL_DEV === "true";
+      const host = isLocal ? "http://localhost:8787" : "http://schiller.town";
 
       const response = await fetch(`${host}/api/documents`, {
         method: "POST",

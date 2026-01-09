@@ -2,14 +2,19 @@ import type { ActionFunctionArgs } from "partymix";
 import { json } from "@remix-run/react";
 import type { Document } from "./api.documents";
 
-function getStorageUrl(request: Request, path: string = "") {
-  const url = new URL(request.url);
-  const host = `${url.protocol}//${url.host}`;
+type Env = {
+  IS_LOCAL_DEV?: string;
+};
+
+function getStorageUrl(request: Request, env: Env, path: string = "") {
+  const isLocal = env.IS_LOCAL_DEV === "true";
+  const host = isLocal ? `http://localhost:8787` : `http://schiller.town`;
   return `${host}/parties/documents-server/default${path}`;
 }
 
 // POST /api/documents/:slug/restore
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request, params, context }: ActionFunctionArgs) {
+  const env = context.env as Env;
   const slug = params.slug;
 
   if (!slug) {
@@ -39,7 +44,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   };
 
   // Save to storage (using id as key)
-  const putUrl = getStorageUrl(request, `/storage-put`);
+  const putUrl = getStorageUrl(request, env, `/storage-put`);
   const putResponse = await fetch(putUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

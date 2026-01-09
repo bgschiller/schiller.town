@@ -1,6 +1,11 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "partymix";
 import { json } from "@remix-run/react";
 
+// Define environment variables type
+type Env = {
+  IS_LOCAL_DEV?: string;
+};
+
 export type Document = {
   id: string;
   slug: string;
@@ -12,18 +17,27 @@ export type Document = {
 };
 
 // Helper to get PartyServer storage URL
-function getStorageUrl(request: Request, path: string = "") {
-  const url = new URL(request.url);
-  const host = `${url.protocol}//${url.host}`;
-  return `${host}/parties/documents-server/default${path}`;
+function getStorageUrl(request: Request, env: Env, path: string = "") {
+  // With custom domain routing in wrangler.toml, both request.url and Host header
+  // show the production domain even in local dev. Use environment variable instead.
+  const isLocal = env.IS_LOCAL_DEV === "true";
+
+  console.log("🔍 [getStorageUrl] IS_LOCAL_DEV:", env.IS_LOCAL_DEV, "isLocal:", isLocal);
+
+  const host = isLocal ? `http://localhost:8787` : `http://schiller.town`;
+  const fullUrl = `${host}/parties/documents-server/default${path}`;
+  console.log("🔍 [getStorageUrl] Returning URL:", fullUrl);
+  return fullUrl;
 }
 
 // GET /api/documents?archived=true
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const env = context.env as Env;
   const url = new URL(request.url);
   const showArchived = url.searchParams.get("archived") === "true";
   const storageUrl = getStorageUrl(
     request,
+    env,
     `/storage-list?archived=${showArchived}`
   );
 
@@ -37,7 +51,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 // POST /api/documents (create)
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request, context }: ActionFunctionArgs) {
+  const env = context.env as Env;
   const method = request.method;
 
   // POST /api/documents - Create new document
@@ -59,6 +74,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Check if slug already exists
     const checkUrl = getStorageUrl(
       request,
+      env,
       `/storage-get-by-slug/${encodeURIComponent(body.slug)}`
     );
     const checkResponse = await fetch(checkUrl);
@@ -83,7 +99,7 @@ export async function action({ request }: ActionFunctionArgs) {
     };
 
     // Store in PartyKit (storage key is doc.id)
-    const storageUrl = getStorageUrl(request, `/storage-put`);
+    const storageUrl = getStorageUrl(request, env, `/storage-put`);
     const response = await fetch(storageUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

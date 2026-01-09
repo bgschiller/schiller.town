@@ -16,6 +16,7 @@ binding = "ASSETS"
 # Environment variables
 [vars]
 ANTHROPIC_API_KEY = ""
+IS_LOCAL_DEV = "true"
 
 # Durable Object bindings
 [[durable_objects.bindings]]
