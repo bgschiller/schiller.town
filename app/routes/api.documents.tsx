@@ -57,7 +57,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   // POST /api/documents - Create new document
   if (method === "POST") {
-    const body = await request.json();
+    const body = (await request.json()) as { slug?: string; title?: string };
 
     // Validate slug format
     const slugRegex = /^[a-zA-Z0-9._-]+$/;

@@ -81,17 +81,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     throw new Response("Failed to fetch star chart", { status: 500 });
   }
 
-  const chart = await response.json();
+  const chart = (await response.json()) as Partial<StarChart>;
 
   // Ensure chart has all required properties with defaults
   const validatedChart: StarChart = {
-    id: chart.id || CHART_ID,
-    type: chart.type || "potty-training",
-    title: chart.title || "Everett's Potty Chart",
-    totalSquares: chart.totalSquares || 0,
+    id: chart.id ?? CHART_ID,
+    type: chart.type ?? "potty-training",
+    title: chart.title ?? "Everett's Potty Chart",
+    totalSquares: chart.totalSquares ?? 0,
     exchanges: Array.isArray(chart.exchanges) ? chart.exchanges : [],
-    createdAt: chart.createdAt || Date.now(),
-    updatedAt: chart.updatedAt || Date.now(),
+    createdAt: chart.createdAt ?? Date.now(),
+    updatedAt: chart.updatedAt ?? Date.now(),
   };
 
   // Age out old exchanges client-side as well (in case PartyServer cleanup didn't trigger)
@@ -119,7 +119,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const storageUrl = getStorageUrl(request, `/storage-get/${CHART_ID}`);
   const response = await fetch(storageUrl);
 
-  let rawChart;
+  let rawChart: Partial<StarChart>;
 
   if (response.status === 404) {
     // Chart doesn't exist, create it
@@ -135,18 +135,18 @@ export async function action({ request }: ActionFunctionArgs) {
   } else if (!response.ok) {
     return json({ error: "Failed to fetch star chart" }, { status: 500 });
   } else {
-    rawChart = await response.json();
+    rawChart = (await response.json()) as Partial<StarChart>;
   }
 
   // Ensure chart has all required properties with defaults
   const chart: StarChart = {
-    id: rawChart.id || CHART_ID,
-    type: rawChart.type || "potty-training",
-    title: rawChart.title || "Everett's Potty Chart",
-    totalSquares: rawChart.totalSquares || 0,
+    id: rawChart.id ?? CHART_ID,
+    type: rawChart.type ?? "potty-training",
+    title: rawChart.title ?? "Everett's Potty Chart",
+    totalSquares: rawChart.totalSquares ?? 0,
     exchanges: Array.isArray(rawChart.exchanges) ? rawChart.exchanges : [],
-    createdAt: rawChart.createdAt || Date.now(),
-    updatedAt: rawChart.updatedAt || Date.now(),
+    createdAt: rawChart.createdAt ?? Date.now(),
+    updatedAt: rawChart.updatedAt ?? Date.now(),
   };
 
   // Age out old exchanges before performing any actions

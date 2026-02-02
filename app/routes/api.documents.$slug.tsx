@@ -67,11 +67,11 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
     }
 
     const doc = (await getResponse.json()) as Document;
-    const updates = await request.json();
+    const updates = (await request.json()) as Partial<Document>;
 
     const updatedDoc: Document = {
       ...doc,
-      ...updates,
+      ...(updates as Partial<Document>),
       id: doc.id, // Don't allow changing the ID
       slug: doc.slug, // Don't allow changing the slug via PUT
       updatedAt: Date.now(),
@@ -94,7 +94,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
 
   // PATCH /api/documents/:slug - Rename document (change slug)
   if (method === "PATCH") {
-    const { newSlug } = await request.json();
+    const { newSlug } = (await request.json()) as { newSlug?: string };
 
     if (!newSlug || newSlug.trim() === "") {
       return json({ error: "New slug is required" }, { status: 400 });

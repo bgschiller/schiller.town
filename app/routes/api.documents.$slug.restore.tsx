@@ -26,6 +26,7 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
   // Get existing document by slug
   const getUrl = getStorageUrl(
     request,
+    env,
     `/storage-get-by-slug/${encodeURIComponent(decodedSlug)}`
   );
   const getResponse = await fetch(getUrl);

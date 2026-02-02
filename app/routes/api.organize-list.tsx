@@ -18,7 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 // POST /api/organize-list
 export async function action({ request, context }: ActionFunctionArgs) {
-  const body = await request.json();
+  const body = (await request.json()) as { items?: string[] };
 
   if (!body.items || !Array.isArray(body.items)) {
     return json(

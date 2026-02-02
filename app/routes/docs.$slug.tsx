@@ -223,27 +223,26 @@ export default function DocPage() {
   const contentEditor = useEditor(
     {
       immediatelyRender: false,
-      extensions:
-        isClient && ydoc && isSynced
-          ? [
-              StarterKit.configure({
-                history: false, // Disable StarterKit history, use separate History extension
-                bulletList: {
-                  keepMarks: true,
-                  keepAttributes: false,
-                },
-              }),
-              Placeholder.configure({
-                placeholder: "Start writing...",
-              }),
-              Collaboration.configure({
-                document: ydoc,
-                field: `${documentId}-content`,
-              }),
-              History, // Enable history for undo/redo
-              MergeAdjacentLists,
-            ]
-          : [StarterKit],
+      extensions: (isClient && ydoc && isSynced
+        ? [
+            StarterKit.configure({
+              history: false, // Disable StarterKit history, use separate History extension
+              bulletList: {
+                keepMarks: true,
+                keepAttributes: false,
+              },
+            }),
+            Placeholder.configure({
+              placeholder: "Start writing...",
+            }),
+            Collaboration.configure({
+              document: ydoc,
+              field: `${documentId}-content`,
+            }),
+            History, // Enable history for undo/redo
+            MergeAdjacentLists,
+          ]
+        : [StarterKit]) as any[],
       editorProps: {
         attributes: {
           class: "content-editor",

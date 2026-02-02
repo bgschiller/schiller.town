@@ -25,7 +25,7 @@ if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
 // Create a request handler for Remix
 const handleRequest = createRequestHandler({
   build,
-  getLoadContext: (req: any, lobby: any, ctx: any) => {
+  getLoadContext: (req: any, lobby: any, ctx: any): any => {
     // Provide access to Durable Objects and env vars
     const env = ctx.env as Env;
     return {

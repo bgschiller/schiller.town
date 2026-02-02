@@ -5,7 +5,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert";
-import { categorizeItem } from "./grocery-categorizer.ts";
+import { categorizeItem } from "./grocery-categorizer";
 
 test("salmon should be mapped to Fish Market", () => {
   const result = categorizeItem("salmon");
