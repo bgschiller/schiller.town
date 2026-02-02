@@ -401,15 +401,28 @@ export default function DocPage() {
       // We need to ensure we're inserting at the block level, not inside a list
       const { $from, $to } = state.selection;
 
-      // Find the depth of the outermost list in our selection
-      let listDepth = 0;
+      // Find the depth of the outermost list in our selection starting from $from
+      let startListDepth = 0;
       for (let d = $from.depth; d > 0; d--) {
         const node = $from.node(d);
         if (
           node.type.name === "bulletList" ||
           node.type.name === "orderedList"
         ) {
-          listDepth = d;
+          startListDepth = d;
+          break;
+        }
+      }
+
+      // Find the depth of the outermost list in our selection ending at $to
+      let endListDepth = 0;
+      for (let d = $to.depth; d > 0; d--) {
+        const node = $to.node(d);
+        if (
+          node.type.name === "bulletList" ||
+          node.type.name === "orderedList"
+        ) {
+          endListDepth = d;
           break;
         }
       }
@@ -418,13 +431,11 @@ export default function DocPage() {
       let deleteFrom = from;
       let deleteTo = to;
 
-      if (listDepth > 0) {
-        const $listStart = state.doc.resolve($from.before(listDepth));
-        const $listEnd = state.doc.resolve(
-          $to.after(Math.min(listDepth, $to.depth))
-        );
-        deleteFrom = $listStart.pos;
-        deleteTo = $listEnd.pos;
+      if (startListDepth > 0) {
+        deleteFrom = $from.before(startListDepth);
+      }
+      if (endListDepth > 0) {
+        deleteTo = $to.after(endListDepth);
       }
 
       // Delete the range and insert new content
