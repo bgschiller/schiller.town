@@ -45,7 +45,7 @@ const MEDIA_SERVICES = [
   },
   {
     name: "Songs",
-    desc: "Music streaming",
+    desc: "Bedtime Songs",
     url: "https://songs.schiller.town",
     icon: "🎵",
     requiresNetwork: false,
@@ -106,9 +106,7 @@ function ServiceCard({
     <a
       href={url}
       className="service-card"
-      {...(isExternal
-        ? { target: "_blank", rel: "noopener noreferrer" }
-        : {})}
+      {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
     >
       <span className="service-icon">{icon}</span>
       <span className="service-name">{name}</span>
@@ -124,7 +122,13 @@ function ServiceSection({
   network,
 }: {
   title: string;
-  services: { name: string; desc: string; url: string; icon: string; requiresNetwork?: boolean }[];
+  services: {
+    name: string;
+    desc: string;
+    url: string;
+    icon: string;
+    requiresNetwork?: boolean;
+  }[];
   network: NetworkStatus;
 }) {
   const someUnavailable =
@@ -242,8 +246,16 @@ export default function Home() {
         </div>
       </header>
 
-      <ServiceSection title="Media" services={MEDIA_SERVICES} network={network} />
-      <ServiceSection title="Family" services={FAMILY_SERVICES} network={network} />
+      <ServiceSection
+        title="Family"
+        services={FAMILY_SERVICES}
+        network={network}
+      />
+      <ServiceSection
+        title="Media"
+        services={MEDIA_SERVICES}
+        network={network}
+      />
 
       <details className="service-group admin-group">
         <summary className="group-heading">Admin Tools</summary>
