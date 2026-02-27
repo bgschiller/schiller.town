@@ -19,7 +19,7 @@ export const loader: LoaderFunction = async (args) => {
   return Response.json({ userName });
 };
 
-type NetworkStatus = "detecting" | "lan" | "tailscale" | "external";
+type NetworkStatus = "detecting" | "reachable" | "external";
 
 const MEDIA_SERVICES = [
   {
@@ -72,8 +72,7 @@ const ADMIN_SERVICES = [
 ];
 
 function adminUrl(port: number, network: NetworkStatus): string | null {
-  if (network === "lan") return `http://192.168.0.44:${port}`;
-  if (network === "tailscale") return `http://raichu:${port}`;
+  if (network === "reachable") return `http://raichu:${port}`;
   return null;
 }
 
@@ -128,7 +127,7 @@ function ServiceSection({
   network: NetworkStatus;
 }) {
   const someUnavailable =
-    network === "external" && services.some((s) => s.requiresNetwork);
+    network !== "reachable" && network !== "detecting" && services.some((s) => s.requiresNetwork);
   return (
     <div className="service-group">
       <div className="group-heading">{title}</div>
@@ -189,7 +188,7 @@ function AdminCard({
 }
 
 function NetworkBanner({ network }: { network: NetworkStatus }) {
-  if (network === "lan" || network === "tailscale") return null;
+  if (network === "reachable") return null;
   if (network === "detecting") {
     return <div className="network-warning">Detecting network…</div>;
   }
@@ -208,19 +207,11 @@ export default function Home() {
   useEffect(() => {
     const detect = async () => {
       try {
-        await fetch("https://ping-lan.schiller.town:4443", {
-          signal: AbortSignal.timeout(1500),
-          mode: "no-cors",
-        });
-        setNetwork("lan");
-        return;
-      } catch {}
-      try {
-        await fetch("https://ping-ts.schiller.town", {
+        await fetch("https://stream.schiller.town", {
           signal: AbortSignal.timeout(2000),
           mode: "no-cors",
         });
-        setNetwork("tailscale");
+        setNetwork("reachable");
         return;
       } catch {}
       setNetwork("external");
