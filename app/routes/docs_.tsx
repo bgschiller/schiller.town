@@ -271,8 +271,8 @@ export default function Index() {
       <div className="docs-container">
         <div className="docs-header">
           <div className="header-left">
-            <h1 className="page-title">Household</h1>
-            <p className="page-subtitle">Documents and Star Charts</p>
+            <a href="/" className="back-link" style={{ marginBottom: "0.5rem", display: "block" }}>← Home</a>
+            <h1 className="page-title">Documents</h1>
           </div>
           <div className="user-info">
             <span>👋 {userName}</span>
@@ -407,25 +407,6 @@ export default function Index() {
           </>
         )}
 
-        <hr className="section-divider" />
-
-        {/* Star Chart Section */}
-        <div className="section-header">
-          <h2 className="section-title">⭐ Star Charts</h2>
-        </div>
-
-        <div className="docs-grid" style={{ marginBottom: "3rem" }}>
-          <div
-            className="doc-card star-chart-card"
-            onClick={() => navigate("/star-chart")}
-          >
-            <div className="star-chart-icon">🎉</div>
-            <div className="star-chart-title">Everett's Potty Chart</div>
-            <div className="star-chart-description">
-              Track potty training progress
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );
