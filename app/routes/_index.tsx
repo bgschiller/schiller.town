@@ -27,24 +27,28 @@ const MEDIA_SERVICES = [
     desc: "Watch movies and TV",
     url: "https://stream.schiller.town",
     icon: "📺",
+    requiresNetwork: true,
   },
   {
     name: "Jellyseerr",
     desc: "Request new content",
     url: "https://request.schiller.town",
     icon: "🎬",
+    requiresNetwork: true,
   },
   {
     name: "Photos",
     desc: "Photo library",
     url: "https://photos.schiller.town",
     icon: "📷",
+    requiresNetwork: false,
   },
   {
     name: "Songs",
     desc: "Music streaming",
     url: "https://songs.schiller.town",
     icon: "🎵",
+    requiresNetwork: false,
   },
 ];
 
@@ -78,13 +82,26 @@ function ServiceCard({
   desc,
   url,
   icon,
+  unavailable,
 }: {
   name: string;
   desc: string;
   url: string;
   icon: string;
+  unavailable?: boolean;
 }) {
   const isExternal = url.startsWith("http");
+  const displayUrl = isExternal ? url.replace("https://", "") : url;
+  if (unavailable) {
+    return (
+      <div className="service-card service-card--unavailable">
+        <span className="service-icon">{icon}</span>
+        <span className="service-name">{name}</span>
+        <span className="service-desc">{desc}</span>
+        <span className="service-url">{displayUrl}</span>
+      </div>
+    );
+  }
   return (
     <a
       href={url}
@@ -96,7 +113,7 @@ function ServiceCard({
       <span className="service-icon">{icon}</span>
       <span className="service-name">{name}</span>
       <span className="service-desc">{desc}</span>
-      <span className="service-url">{isExternal ? url.replace("https://", "") : url}</span>
+      <span className="service-url">{displayUrl}</span>
     </a>
   );
 }
@@ -104,16 +121,29 @@ function ServiceCard({
 function ServiceSection({
   title,
   services,
+  network,
 }: {
   title: string;
-  services: typeof MEDIA_SERVICES;
+  services: { name: string; desc: string; url: string; icon: string; requiresNetwork?: boolean }[];
+  network: NetworkStatus;
 }) {
+  const someUnavailable =
+    network === "external" && services.some((s) => s.requiresNetwork);
   return (
     <div className="service-group">
       <div className="group-heading">{title}</div>
+      {someUnavailable && (
+        <div className="network-warning">
+          Some services require Tailscale or home Wi-Fi
+        </div>
+      )}
       <div className="service-list">
         {services.map((s) => (
-          <ServiceCard key={s.name} {...s} />
+          <ServiceCard
+            key={s.name}
+            {...s}
+            unavailable={s.requiresNetwork && network === "external"}
+          />
         ))}
       </div>
     </div>
@@ -212,8 +242,8 @@ export default function Home() {
         </div>
       </header>
 
-      <ServiceSection title="Media" services={MEDIA_SERVICES} />
-      <ServiceSection title="Family" services={FAMILY_SERVICES} />
+      <ServiceSection title="Media" services={MEDIA_SERVICES} network={network} />
+      <ServiceSection title="Family" services={FAMILY_SERVICES} network={network} />
 
       <details className="service-group admin-group">
         <summary className="group-heading">Admin Tools</summary>
