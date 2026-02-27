@@ -354,7 +354,7 @@ export default function ArchivedDocuments() {
         <div className="docs-header">
           <div className="header-left">
             <h1 className="docs-title">📦 Archived Documents</h1>
-            <a href="/" className="back-link">
+            <a href="/docs" className="back-link">
               ← Back to active documents
             </a>
           </div>

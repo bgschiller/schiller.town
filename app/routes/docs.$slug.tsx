@@ -1020,7 +1020,7 @@ export default function DocPage() {
       <div className="page-wrapper">
         <div className="container">
           <div className="header">
-            <button className="back-button" onClick={() => navigate("/")}>
+            <button className="back-button" onClick={() => navigate("/docs")}>
               ← Back to documents
             </button>
 
