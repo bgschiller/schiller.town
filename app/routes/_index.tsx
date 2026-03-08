@@ -69,6 +69,7 @@ const ADMIN_SERVICES = [
   { name: "Prowlarr", desc: "Indexer management", port: 9696 },
   { name: "rdt-client", desc: "Real-Debrid downloads", port: 6500 },
   { name: "Audiobookshelf", desc: "Audiobooks & podcasts", port: 13378 },
+  { name: "Bookshelf", desc: "Audiobook automation", port: 8787 },
 ];
 
 function adminUrl(port: number, network: NetworkStatus): string | null {
