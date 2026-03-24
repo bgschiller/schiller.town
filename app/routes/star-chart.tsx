@@ -4,7 +4,6 @@ import { authenticateLoader } from "~/utils/session.server";
 import { getApiUrl } from "~/utils/api.client";
 import { useEffect, useState } from "react";
 import type { StarChart } from "~/../../party/star-chart";
-import { getProvider } from "~/utils/collaboration.client";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: "/styles/star-chart.css" },
@@ -28,12 +27,6 @@ export default function StarChartPage() {
   const [chart, setChart] = useState<StarChart | null>(null);
   const [totalSquares, setTotalSquares] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
-
-  // Initialize client-side state
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Fetch initial chart state
   useEffect(() => {
@@ -55,53 +48,6 @@ export default function StarChartPage() {
 
     fetchChart();
   }, []);
-
-  // Set up Yjs real-time sync for totalSquares
-  useEffect(() => {
-    if (!isClient || !chart) return;
-
-    const provider = getProvider("everett-potty");
-    if (!provider) return;
-
-    const ydoc = provider.doc;
-    const yTotalSquares = ydoc.getMap("everett-potty-total");
-
-    // Initialize Yjs with current value if not set
-    if (!yTotalSquares.has("value")) {
-      yTotalSquares.set("value", chart.totalSquares);
-    }
-
-    // Subscribe to changes
-    const observer = () => {
-      const value = yTotalSquares.get("value") as number;
-      if (typeof value === "number") {
-        setTotalSquares(value);
-      }
-    };
-
-    yTotalSquares.observe(observer);
-
-    return () => {
-      yTotalSquares.unobserve(observer);
-    };
-  }, [isClient, chart]);
-
-  // Update Yjs when totalSquares changes from API
-  useEffect(() => {
-    if (!isClient || !chart) return;
-
-    const provider = getProvider("everett-potty");
-    if (!provider) return;
-
-    const ydoc = provider.doc;
-    const yTotalSquares = ydoc.getMap("everett-potty-total");
-
-    // Only update if different to avoid loops
-    const currentValue = yTotalSquares.get("value") as number;
-    if (currentValue !== totalSquares) {
-      yTotalSquares.set("value", totalSquares);
-    }
-  }, [totalSquares, isClient, chart]);
 
   // Refresh chart data after actions
   useEffect(() => {
@@ -131,7 +77,6 @@ export default function StarChartPage() {
   const handleExchange = () => {
     if (!chart || !Array.isArray(chart.exchanges)) return;
 
-    console.log("Chart line 151:", chart);
     const totalExchanged = chart.exchanges.reduce(
       (sum, ex) => sum + ex.squaresExchanged,
       0
@@ -199,15 +144,17 @@ export default function StarChartPage() {
 
           <div className="stats-row">
             <div className="stat-item">
-              <span className="stat-label">Total Squares</span>
-              <span className="stat-value">{totalSquares}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Active Squares</span>
+              <span className="stat-label">Available Squares</span>
               <span className="stat-value active">{activeSquares}</span>
             </div>
             <div className="stat-item">
-              <span className="stat-label">TV Time Earned</span>
+              <span className="stat-label">Available TV</span>
+              <span className="stat-value">
+                {Math.floor(activeSquares / 20) * 20} min
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">TV Used Today</span>
               <span className="stat-value">
                 {chart && Array.isArray(chart.exchanges)
                   ? chart.exchanges.length * 20
@@ -219,12 +166,18 @@ export default function StarChartPage() {
 
           <div className="grid-container">
             {Array.from({ length: numRows }, (_, rowIndex) => {
-              // Check if entire row is exchanged (all 20 squares in this row)
               const rowStartSquare = rowIndex * 20 + 1;
-              const allSquaresExchanged = Array.from(
+              const rowEndSquare = rowIndex * 20 + 20;
+              const rowSquares = Array.from(
                 { length: 20 },
                 (_, i) => rowStartSquare + i
-              ).every((squareNum) => isSquareExchanged(squareNum));
+              );
+              const allExchanged = rowSquares.every((sq) =>
+                isSquareExchanged(sq)
+              );
+              const allActiveAndFull =
+                rowEndSquare <= totalSquares &&
+                rowSquares.every((sq) => !isSquareExchanged(sq));
 
               return (
                 <div key={rowIndex} className="grid-row">
@@ -252,7 +205,7 @@ export default function StarChartPage() {
                     })}
                   </div>
                   <span className="row-star">
-                    {allSquaresExchanged ? "⭐" : "☆"}
+                    {allExchanged ? "" : allActiveAndFull ? "⭐" : "☆"}
                   </span>
                 </div>
               );
