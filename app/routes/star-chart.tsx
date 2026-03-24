@@ -26,6 +26,7 @@ export default function StarChartPage() {
   const fetcher = useFetcher();
   const [chart, setChart] = useState<StarChart | null>(null);
   const [totalSquares, setTotalSquares] = useState(0);
+  const [dryCount, setDryCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Fetch initial chart state
@@ -38,6 +39,7 @@ export default function StarChartPage() {
           const chartData: StarChart = await response.json();
           setChart(chartData);
           setTotalSquares(chartData.totalSquares);
+          setDryCount(chartData.dryCount);
         }
       } catch (error) {
         console.error("Failed to fetch star chart:", error);
@@ -55,6 +57,7 @@ export default function StarChartPage() {
       const updatedChart = fetcher.data as StarChart;
       setChart(updatedChart);
       setTotalSquares(updatedChart.totalSquares);
+      setDryCount(updatedChart.dryCount);
     }
   }, [fetcher.data, fetcher.state]);
 
@@ -94,6 +97,25 @@ export default function StarChartPage() {
       )
     ) {
       fetcher.submit(JSON.stringify({ action: "exchange" }), {
+        method: "post",
+        action: "/api/star-chart",
+        encType: "application/json",
+      });
+    }
+  };
+
+  const handleDryDay = () => {
+    fetcher.submit(JSON.stringify({ action: "dry-day" }), {
+      method: "post",
+      action: "/api/star-chart",
+      encType: "application/json",
+    });
+  };
+
+  const handleDryReward = () => {
+    if (dryCount < 20) return;
+    if (confirm("Claim big reward for 20 all-day-dry days?")) {
+      fetcher.submit(JSON.stringify({ action: "dry-reward" }), {
         method: "post",
         action: "/api/star-chart",
         encType: "application/json",
@@ -241,6 +263,33 @@ export default function StarChartPage() {
             >
               ⭐ TV Time
             </button>
+          </div>
+
+          <div className="dry-section">
+            <h2 className="dry-title">All Day Dry</h2>
+            <div className="dry-progress-track">
+              <div
+                className="dry-progress-fill"
+                style={{ width: `${Math.min(100, (dryCount / 20) * 100)}%` }}
+              />
+            </div>
+            <p className="dry-count">{dryCount} / 20</p>
+            <div className="dry-buttons">
+              <button
+                className="action-button btn-dry-day"
+                onClick={handleDryDay}
+                disabled={fetcher.state !== "idle"}
+              >
+                All Day Dry!
+              </button>
+              <button
+                className="action-button btn-dry-reward"
+                onClick={handleDryReward}
+                disabled={fetcher.state !== "idle" || dryCount < 20}
+              >
+                Big Reward
+              </button>
+            </div>
           </div>
         </div>
       </div>

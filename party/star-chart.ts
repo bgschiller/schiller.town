@@ -12,6 +12,7 @@ export type StarChart = {
   type: string; // e.g., "potty-training" (allows different chart types)
   title: string; // e.g., "Everett's Potty Chart"
   totalSquares: number; // Total accumulated (never decreases)
+  dryCount: number; // All-day-dry counter toward big reward
   exchanges: StarChartExchange[]; // History of TV time exchanges
   createdAt: number;
   updatedAt: number;

@@ -62,6 +62,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       type: "potty-training",
       title: "Everett's Potty Chart",
       totalSquares: 0,
+      dryCount: 0,
       exchanges: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -89,6 +90,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     type: chart.type ?? "potty-training",
     title: chart.title ?? "Everett's Potty Chart",
     totalSquares: chart.totalSquares ?? 0,
+    dryCount: chart.dryCount ?? 0,
     exchanges: Array.isArray(chart.exchanges) ? chart.exchanges : [],
     createdAt: chart.createdAt ?? Date.now(),
     updatedAt: chart.updatedAt ?? Date.now(),
@@ -128,6 +130,7 @@ export async function action({ request }: ActionFunctionArgs) {
       type: "potty-training",
       title: "Everett's Potty Chart",
       totalSquares: 0,
+      dryCount: 0,
       exchanges: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -144,6 +147,7 @@ export async function action({ request }: ActionFunctionArgs) {
     type: rawChart.type ?? "potty-training",
     title: rawChart.title ?? "Everett's Potty Chart",
     totalSquares: rawChart.totalSquares ?? 0,
+    dryCount: rawChart.dryCount ?? 0,
     exchanges: Array.isArray(rawChart.exchanges) ? rawChart.exchanges : [],
     createdAt: rawChart.createdAt ?? Date.now(),
     updatedAt: rawChart.updatedAt ?? Date.now(),
@@ -206,6 +210,18 @@ export async function action({ request }: ActionFunctionArgs) {
     };
 
     chart.exchanges.push(newExchange);
+    chart.updatedAt = Date.now();
+  } else if (action === "dry-day") {
+    chart.dryCount += 1;
+    chart.updatedAt = Date.now();
+  } else if (action === "dry-reward") {
+    if (chart.dryCount < 20) {
+      return json(
+        { error: "Need at least 20 dry days to claim reward" },
+        { status: 400 }
+      );
+    }
+    chart.dryCount -= 20;
     chart.updatedAt = Date.now();
   } else {
     return json({ error: "Invalid action" }, { status: 400 });
