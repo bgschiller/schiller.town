@@ -50,6 +50,13 @@ const MEDIA_SERVICES = [
     icon: "🎵",
     requiresNetwork: false,
   },
+  {
+    name: "Files",
+    desc: "Shared file downloads",
+    url: "https://files.schiller.town",
+    icon: "📁",
+    requiresNetwork: false,
+  },
 ];
 
 const FAMILY_SERVICES = [
