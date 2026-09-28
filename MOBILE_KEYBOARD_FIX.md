@@ -4,39 +4,43 @@
 
 On mobile devices (Android and iOS), focusing the document editor and opening the
 virtual keyboard produced a grey gap between the editing area and the keyboard,
-below the editing command bar. The page used a fixed-height flex layout with a
-bottom command bar and a custom Visual Viewport-based height adjustment. When the
-browser scrolled the focused caret into view, the app shell's height no longer
-matched the visible viewport, leaving body background showing in the gap.
+below the editing command bar. The app used a bottom command bar and a custom
+Visual Viewport-based height adjustment (`ViewportSizeLayout`). When the browser
+scrolled the focused caret into view, the app shell's height no longer matched the
+visible viewport, leaving body background showing in the gap.
 
 ## Solution
 
-The editor now uses the browser's natural document scrolling instead of a fixed-height
-app shell:
+The editor uses a fixed-height, inner-scroll layout with the command bar at the top:
 
-- **Command bar is sticky at the top** (`position: sticky; top: 0`) so it stays
-  visible while the keyboard is open, without any manual keyboard/viewport tracking.
-- **The document sheet scrolls with the page** (no inner `overflow-y` scroll area),
-  so the browser's built-in keyboard/focus scrolling behaves normally.
+- **The page itself does not scroll.** `.page-wrapper` is `height: 100%` with
+  `overflow: hidden`, and `html, body` are `height: 100%`.
+- **The command bar is a fixed (non-scrolling) bar at the top** of the flex column.
+  It never scrolls out of view, with or without the keyboard open.
+- **Only the editors scroll**, via `.editors-wrapper { overflow-y: auto; flex: 1 }`.
+  The browser scrolls the caret into view inside this container when the keyboard
+  opens, so there is no visual-viewport offset and no grey gap.
 - **The header (back button, presence indicator, logout) is hidden on mobile** to make
   room for the command bar at the top. It remains visible on desktop.
 - **Removed `ViewportSizeLayout`** from `app/root.tsx` and deleted the component. This
-  was the Visual Viewport height adjustment that caused the grey gap. The global
-  `html, body` height rules were relaxed to `min-height: 100%` so pages scroll naturally.
+  was the Visual Viewport height adjustment that caused the grey gap.
 
 ## Key Technical Details
 
-The document sheet (`.container`) has `min-height: 100vh`, so its white background always
-extends at least to the full layout viewport height. When the keyboard opens, the visual
-viewport shrinks but the layout viewport (and `100vh`) do not, so the sheet still covers
-the area behind the keyboard and no grey body background appears above it.
+The document sheet (`.container`) is a flex child that fills the remaining height
+below the command bar. Its white background always covers the full visible area, so
+the grey `body` background never appears between the editor and the keyboard.
+
+Because the command bar is a normal flex child at the top (not `position: sticky` or
+`position: fixed`), it is not affected by iOS/Android visual-viewport quirks while
+the keyboard is open.
 
 ## Files Modified
 
 - `app/root.tsx` - Removed `ViewportSizeLayout` wrapper
 - `app/components/ViewportSizeLayout.tsx` - Deleted
-- `app/routes/docs.$slug.tsx` - Moved command bar to sticky top, natural scroll layout, hid header on mobile
-- `public/styles/root.css` - Relaxed `html, body` height to `min-height: 100%`
+- `app/routes/docs.$slug.tsx` - Fixed-height inner-scroll layout, top command bar, header hidden on mobile
+- `public/styles/root.css` - `html, body` height `100%` for the flex layout
 
 ## Testing
 
@@ -44,8 +48,8 @@ the area behind the keyboard and no grey body background appears above it.
 2. Navigate to a document
 3. Tap in the editor to open the keyboard
 4. Verify:
-   - The command bar stays visible at the top
+   - The command bar stays visible at the top while scrolling
    - No grey gap appears between the editing area and the keyboard
-   - The page scrolls normally while typing
+   - The editor content scrolls normally while typing
    - The header (back/presence/logout) is hidden on mobile
    - Dismissing the keyboard restores the normal page

@@ -90,8 +90,8 @@ export default function DocPage() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
-  // The command bar is sticky at the top of the document sheet,
-  // so it stays visible without needing visual-viewport/keyboard tracking.
+  // The command bar lives at the top of the editor sheet. The page itself
+  // doesn't scroll; only the editors scroll underneath the fixed bar.
 
   // Pick a random grocery item emoji for the Group Items button
   const foodEmoji = useMemo(() => {
@@ -613,7 +613,10 @@ export default function DocPage() {
         }
 
         .page-wrapper {
-          min-height: 100vh;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
         .container {
@@ -622,9 +625,12 @@ export default function DocPage() {
           margin: 0 auto;
           position: relative;
           box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+          flex: 1;
+          display: flex;
+          flex-direction: column;
           width: 100%;
-          min-height: 100vh;
-          padding-bottom: 2rem;
+          overflow: hidden;
+          min-height: 0;
         }
 
         .header {
@@ -636,6 +642,7 @@ export default function DocPage() {
           border-bottom: 1px solid #e5e5e5;
           flex-wrap: wrap;
           gap: 1rem;
+          flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
@@ -645,7 +652,11 @@ export default function DocPage() {
         }
 
         .editors-wrapper {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
           padding: 0 2rem;
+          min-height: 0;
         }
 
         @media (max-width: 768px) {
@@ -891,10 +902,9 @@ export default function DocPage() {
           white-space: nowrap;
         }
 
-        /* Command bar is sticky at the top so it stays visible while typing */
+        /* Command bar is fixed at the top of the editor */
         .command-bar-container {
-          position: sticky;
-          top: 0;
+          flex-shrink: 0;
           z-index: 20;
           background: white;
           border-bottom: 1px solid #e5e5e5;
@@ -904,6 +914,8 @@ export default function DocPage() {
 
         .command-bar-wrapper {
           width: 100%;
+          max-width: 50rem;
+          margin: 0 auto;
           padding: 0.5rem 2rem;
           display: flex;
           background: white;
@@ -1002,77 +1014,77 @@ export default function DocPage() {
       `}</style>
 
       <div className="page-wrapper">
-        <div className="container">
-          {/* Command bar - sticky at the top so it stays visible while typing */}
-          {isClient && (
-            <div className="command-bar-container">
-              <div className="command-bar-wrapper">
-                <div className="command-bar">
-                  <div className="command-bar-group">
-                    <button
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                      }}
-                      onClick={handleUndo}
-                      className="command-bar-button icon-button"
-                      disabled={!canUndo}
-                      title="Undo"
-                    >
-                      ↶
-                    </button>
-                    <button
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                      }}
-                      onClick={handleRedo}
-                      className="command-bar-button icon-button"
-                      disabled={!canRedo}
-                      title="Redo"
-                    >
-                      ↷
-                    </button>
-                  </div>
-                  <div className="command-bar-group">
-                    <button
-                      onMouseDown={(e) => {
-                        // Prevent editor from losing focus on click
-                        e.preventDefault();
-                      }}
-                      onClick={handleOrganizeList}
-                      className="command-bar-button"
-                      disabled={isOrganizing || !hasListSelection}
-                      title={
-                        hasListSelection
-                          ? "Organize selected list items by category"
-                          : "Select list items to organize"
-                      }
-                    >
-                      {isOrganizing
-                        ? "⏳ Grouping..."
-                        : `${foodEmoji} Group Items`}
-                    </button>
-                    <button
-                      onMouseDown={(e) => {
-                        // Prevent editor from losing focus on click
-                        e.preventDefault();
-                      }}
-                      onClick={handleFlattenList}
-                      className="command-bar-button secondary"
-                      disabled={isOrganizing || !hasListSelection}
-                      title={
-                        hasListSelection
-                          ? "Remove headings and flatten list"
-                          : "Select list items to flatten"
-                      }
-                    >
-                      📋 Flatten
-                    </button>
-                  </div>
+        {/* Command bar - fixed at the top of the editor */}
+        {isClient && (
+          <div className="command-bar-container">
+            <div className="command-bar-wrapper">
+              <div className="command-bar">
+                <div className="command-bar-group">
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={handleUndo}
+                    className="command-bar-button icon-button"
+                    disabled={!canUndo}
+                    title="Undo"
+                  >
+                    ↶
+                  </button>
+                  <button
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={handleRedo}
+                    className="command-bar-button icon-button"
+                    disabled={!canRedo}
+                    title="Redo"
+                  >
+                    ↷
+                  </button>
+                </div>
+                <div className="command-bar-group">
+                  <button
+                    onMouseDown={(e) => {
+                      // Prevent editor from losing focus on click
+                      e.preventDefault();
+                    }}
+                    onClick={handleOrganizeList}
+                    className="command-bar-button"
+                    disabled={isOrganizing || !hasListSelection}
+                    title={
+                      hasListSelection
+                        ? "Organize selected list items by category"
+                        : "Select list items to organize"
+                    }
+                  >
+                    {isOrganizing
+                      ? "⏳ Grouping..."
+                      : `${foodEmoji} Group Items`}
+                  </button>
+                  <button
+                    onMouseDown={(e) => {
+                      // Prevent editor from losing focus on click
+                      e.preventDefault();
+                    }}
+                    onClick={handleFlattenList}
+                    className="command-bar-button secondary"
+                    disabled={isOrganizing || !hasListSelection}
+                    title={
+                      hasListSelection
+                        ? "Remove headings and flatten list"
+                        : "Select list items to flatten"
+                    }
+                  >
+                    📋 Flatten
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
+        <div className="container">
           <div className="header">
             <button className="back-button" onClick={() => navigate("/docs")}>
               ← Back to documents
