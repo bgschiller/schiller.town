@@ -90,8 +90,8 @@ export default function DocPage() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
-  // No longer need visual viewport tracking with static positioning
-  // The command bar will naturally be at the bottom of the flex container
+  // The command bar is sticky at the top of the document sheet,
+  // so it stays visible without needing visual-viewport/keyboard tracking.
 
   // Pick a random grocery item emoji for the Group Items button
   const foodEmoji = useMemo(() => {
@@ -613,12 +613,7 @@ export default function DocPage() {
         }
 
         .page-wrapper {
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          position: relative;
-          overscroll-behavior: contain;
+          min-height: 100vh;
         }
 
         .container {
@@ -627,19 +622,9 @@ export default function DocPage() {
           margin: 0 auto;
           position: relative;
           box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
-          flex: 1;
-          display: flex;
-          flex-direction: column;
           width: 100%;
-          overflow: hidden;
-          /* Add padding at bottom for command bar */
-          padding-bottom: 64px;
-        }
-
-        @media (max-width: 768px) {
-          .container {
-            padding-bottom: 64px;
-          }
+          min-height: 100vh;
+          padding-bottom: 2rem;
         }
 
         .header {
@@ -651,20 +636,15 @@ export default function DocPage() {
           border-bottom: 1px solid #e5e5e5;
           flex-wrap: wrap;
           gap: 1rem;
-          flex-shrink: 0;
         }
 
         @media (max-width: 768px) {
           .header {
-            margin-bottom: 1rem;
-            padding: 1rem;
+            display: none;
           }
         }
 
         .editors-wrapper {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
           padding: 0 2rem;
         }
 
@@ -786,7 +766,7 @@ export default function DocPage() {
           line-height: 1.7;
           color: #2e2e2e;
           outline: none;
-          min-height: 100%;
+          min-height: 60vh;
           padding-bottom: 2rem;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
@@ -911,24 +891,28 @@ export default function DocPage() {
           white-space: nowrap;
         }
 
-        /* Command bar styles - negative margin pulls it up to overlay the padding */
+        /* Command bar is sticky at the top so it stays visible while typing */
         .command-bar-container {
-          width: 100%;
-          z-index: 10;
-          touch-action: none;
-          /* Negative margin pulls it up to compensate for container padding */
-          margin-top: -54px;
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          background: white;
+          border-bottom: 1px solid #e5e5e5;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          padding-top: env(safe-area-inset-top);
         }
 
         .command-bar-wrapper {
           width: 100%;
-          z-index: 10;
-          padding-top: 0.5rem;
-          padding-bottom: var(--safe-padding-bottom);
+          padding: 0.5rem 2rem;
           display: flex;
           background: white;
-          border-top: 1px solid #e5e5e5;
-          box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (max-width: 768px) {
+          .command-bar-wrapper {
+            padding: 0.5rem 1rem;
+          }
         }
 
         .command-bar {
@@ -1019,6 +1003,76 @@ export default function DocPage() {
 
       <div className="page-wrapper">
         <div className="container">
+          {/* Command bar - sticky at the top so it stays visible while typing */}
+          {isClient && (
+            <div className="command-bar-container">
+              <div className="command-bar-wrapper">
+                <div className="command-bar">
+                  <div className="command-bar-group">
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
+                      onClick={handleUndo}
+                      className="command-bar-button icon-button"
+                      disabled={!canUndo}
+                      title="Undo"
+                    >
+                      ↶
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
+                      onClick={handleRedo}
+                      className="command-bar-button icon-button"
+                      disabled={!canRedo}
+                      title="Redo"
+                    >
+                      ↷
+                    </button>
+                  </div>
+                  <div className="command-bar-group">
+                    <button
+                      onMouseDown={(e) => {
+                        // Prevent editor from losing focus on click
+                        e.preventDefault();
+                      }}
+                      onClick={handleOrganizeList}
+                      className="command-bar-button"
+                      disabled={isOrganizing || !hasListSelection}
+                      title={
+                        hasListSelection
+                          ? "Organize selected list items by category"
+                          : "Select list items to organize"
+                      }
+                    >
+                      {isOrganizing
+                        ? "⏳ Grouping..."
+                        : `${foodEmoji} Group Items`}
+                    </button>
+                    <button
+                      onMouseDown={(e) => {
+                        // Prevent editor from losing focus on click
+                        e.preventDefault();
+                      }}
+                      onClick={handleFlattenList}
+                      className="command-bar-button secondary"
+                      disabled={isOrganizing || !hasListSelection}
+                      title={
+                        hasListSelection
+                          ? "Remove headings and flatten list"
+                          : "Select list items to flatten"
+                      }
+                    >
+                      📋 Flatten
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="header">
             <button className="back-button" onClick={() => navigate("/docs")}>
               ← Back to documents
@@ -1066,75 +1120,6 @@ export default function DocPage() {
           </div>
         </div>
 
-        {/* Command bar - always visible at the bottom */}
-        {isClient && (
-          <div className="command-bar-container">
-            <div className="command-bar-wrapper">
-              <div className="command-bar">
-                <div className="command-bar-group">
-                  <button
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                    }}
-                    onClick={handleUndo}
-                    className="command-bar-button icon-button"
-                    disabled={!canUndo}
-                    title="Undo"
-                  >
-                    ↶
-                  </button>
-                  <button
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                    }}
-                    onClick={handleRedo}
-                    className="command-bar-button icon-button"
-                    disabled={!canRedo}
-                    title="Redo"
-                  >
-                    ↷
-                  </button>
-                </div>
-                <div className="command-bar-group">
-                  <button
-                    onMouseDown={(e) => {
-                      // Prevent editor from losing focus on click
-                      e.preventDefault();
-                    }}
-                    onClick={handleOrganizeList}
-                    className="command-bar-button"
-                    disabled={isOrganizing || !hasListSelection}
-                    title={
-                      hasListSelection
-                        ? "Organize selected list items by category"
-                        : "Select list items to organize"
-                    }
-                  >
-                    {isOrganizing
-                      ? "⏳ Grouping..."
-                      : `${foodEmoji} Group Items`}
-                  </button>
-                  <button
-                    onMouseDown={(e) => {
-                      // Prevent editor from losing focus on click
-                      e.preventDefault();
-                    }}
-                    onClick={handleFlattenList}
-                    className="command-bar-button secondary"
-                    disabled={isOrganizing || !hasListSelection}
-                    title={
-                      hasListSelection
-                        ? "Remove headings and flatten list"
-                        : "Select list items to flatten"
-                    }
-                  >
-                    📋 Flatten
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

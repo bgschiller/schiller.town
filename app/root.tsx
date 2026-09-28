@@ -8,7 +8,6 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
-import ViewportSizeLayout from "./components/ViewportSizeLayout";
 
 export const links: LinksFunction = () => [
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
@@ -28,9 +27,7 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <ViewportSizeLayout>
-          <Outlet />
-        </ViewportSizeLayout>
+        <Outlet />
         <ScrollRestoration />
         <Scripts />
         {process.env.NODE_ENV === "development" && <LiveReload />}

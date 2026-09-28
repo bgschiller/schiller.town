@@ -2,98 +2,50 @@
 
 ## Problem
 
-On mobile devices (especially Android), when the virtual keyboard opens:
-
-1. The page would not resize to accommodate the reduced viewport
-2. Users could scroll the entire page out of view ("scroll chaining")
-3. Content would get hidden behind the keyboard
+On mobile devices (Android and iOS), focusing the document editor and opening the
+virtual keyboard produced a grey gap between the editing area and the keyboard,
+below the editing command bar. The page used a fixed-height flex layout with a
+bottom command bar and a custom Visual Viewport-based height adjustment. When the
+browser scrolled the focused caret into view, the app shell's height no longer
+matched the visible viewport, leaving body background showing in the gap.
 
 ## Solution
 
-We implemented a two-part solution:
+The editor now uses the browser's natural document scrolling instead of a fixed-height
+app shell:
 
-### 1. ViewportSizeLayout Component (`app/components/ViewportSizeLayout.tsx`)
-
-Uses the Visual Viewport API to dynamically track keyboard open/close events:
-
-- **Monitors viewport changes**: Listens to `window.visualViewport` resize events
-- **Calculates keyboard state**: When `window.innerHeight - visualViewport.height > 50px`, keyboard is considered open
-- **Dynamically resizes**: Sets height to actual visible viewport height when keyboard is open
-- **Updates CSS variable**: Sets `--viewport-height` custom property for use throughout the app
-- **Works cross-platform**: Supports both iOS and Android
-
-### 2. TouchScrollControl Component (`app/components/TouchScrollControl.tsx`)
-
-Prevents unwanted scroll chaining when user reaches scroll boundaries:
-
-- **Detects scrollable areas**: Identifies when touch is within `.editors-wrapper`
-- **Calculates scroll boundaries**: Checks if element is at top or bottom of scroll
-- **Prevents chaining**: Uses `preventDefault()` on `touchmove` when:
-  - User is outside scrollable areas
-  - User is at scroll boundary and trying to scroll further
-- **Allows normal scrolling**: Within content boundaries, scrolling works normally
+- **Command bar is sticky at the top** (`position: sticky; top: 0`) so it stays
+  visible while the keyboard is open, without any manual keyboard/viewport tracking.
+- **The document sheet scrolls with the page** (no inner `overflow-y` scroll area),
+  so the browser's built-in keyboard/focus scrolling behaves normally.
+- **The header (back button, presence indicator, logout) is hidden on mobile** to make
+  room for the command bar at the top. It remains visible on desktop.
+- **Removed `ViewportSizeLayout`** from `app/root.tsx` and deleted the component. This
+  was the Visual Viewport height adjustment that caused the grey gap. The global
+  `html, body` height rules were relaxed to `min-height: 100%` so pages scroll naturally.
 
 ## Key Technical Details
 
-### Visual Viewport API
-
-The Visual Viewport API provides the actual visible viewport dimensions, which change when the keyboard opens:
-
-```javascript
-window.visualViewport.height; // Visible height (excludes keyboard)
-window.innerHeight; // Layout height (doesn't change)
-```
-
-### Scroll Chaining Prevention
-
-Touch events are intercepted at the document level with `capture: true` and `passive: false` to allow `preventDefault()`:
-
-```javascript
-document.addEventListener("touchmove", handler, {
-  passive: false, // Allows preventDefault()
-  capture: true, // Intercepts before reaching elements
-});
-```
-
-### CSS Custom Properties
-
-The viewport height is exposed as a CSS variable for use in styling:
-
-```css
-html,
-body {
-  height: var(--viewport-height, 100%);
-}
-```
+The document sheet (`.container`) has `min-height: 100vh`, so its white background always
+extends at least to the full layout viewport height. When the keyboard opens, the visual
+viewport shrinks but the layout viewport (and `100vh`) do not, so the sheet still covers
+the area behind the keyboard and no grey body background appears above it.
 
 ## Files Modified
 
-- `app/components/ViewportSizeLayout.tsx` - Created viewport tracking component
-- `app/components/TouchScrollControl.tsx` - Created touch control component
-- `app/root.tsx` - Added both components to app root
-- `app/routes/docs.$slug.tsx` - Added `overscroll-behavior: contain` to `.page-wrapper`
+- `app/root.tsx` - Removed `ViewportSizeLayout` wrapper
+- `app/components/ViewportSizeLayout.tsx` - Deleted
+- `app/routes/docs.$slug.tsx` - Moved command bar to sticky top, natural scroll layout, hid header on mobile
+- `public/styles/root.css` - Relaxed `html, body` height to `min-height: 100%`
 
 ## Testing
 
-To test the fix:
-
 1. Open the app on a mobile device
 2. Navigate to a document
-3. Tap in the editor to open keyboard
+3. Tap in the editor to open the keyboard
 4. Verify:
-   - Page resizes to show only visible content
-   - Can scroll editor content normally
-   - Cannot scroll page out of viewport when reaching scroll boundaries
-   - Cannot drag/pan non-scrollable areas
-
-## Browser Support
-
-- **Visual Viewport API**: Supported in all modern mobile browsers (iOS Safari 13+, Chrome Android 61+)
-- **Touch Events**: Universal support on mobile devices
-- **CSS Custom Properties**: Universal support in modern browsers
-
-## Future Improvements
-
-- Could add haptic feedback when reaching scroll boundaries
-- Could make the keyboard detection threshold (50px) configurable
-- Could extend to support other scrollable areas beyond `.editors-wrapper`
+   - The command bar stays visible at the top
+   - No grey gap appears between the editing area and the keyboard
+   - The page scrolls normally while typing
+   - The header (back/presence/logout) is hidden on mobile
+   - Dismissing the keyboard restores the normal page
