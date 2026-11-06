@@ -1,5 +1,5 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "partymix";
-import { json } from "partymix";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Form, useActionData, useSearchParams } from "@remix-run/react";
 import {
   createUserSession,
@@ -7,8 +7,8 @@ import {
   verifyPassword,
 } from "~/utils/session.server";
 
-export async function loader({ request, context }: LoaderFunctionArgs) {
-  const userName = await getUserName(request, context.env.SESSION_SECRET);
+export async function loader({ request }: LoaderFunctionArgs) {
+  const userName = await getUserName(request);
   if (userName) {
     // Already logged in, redirect to next page or home
     const url = new URL(request.url);
@@ -21,7 +21,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   return json({});
 }
 
-export async function action({ request, context }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const password = formData.get("password");
   const name = formData.get("name");
@@ -42,15 +42,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ error: "Please enter the password" }, { status: 400 });
   }
 
-  if (!verifyPassword(password, context.env.HOUSEHOLD_PASSWORD)) {
+  if (!verifyPassword(password, process.env.HOUSEHOLD_PASSWORD ?? "")) {
     return json({ error: "Incorrect password" }, { status: 401 });
   }
 
-  return createUserSession(
-    name.trim(),
-    next.toString(),
-    context.env.SESSION_SECRET
-  );
+  return createUserSession(name.trim(), next.toString());
 }
 
 export default function Login() {

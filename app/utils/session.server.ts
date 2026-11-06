@@ -1,34 +1,27 @@
-import { createCookieSessionStorage, redirect } from "partymix";
-import type { LoaderFunctionArgs } from "partymix";
+import { createCookieSessionStorage, redirect } from "@remix-run/node";
+import { createHash, timingSafeEqual } from "node:crypto";
 
-// Type for environment variables with session support
-export type SessionEnv = {
-  SESSION_SECRET: string;
-  HOUSEHOLD_PASSWORD: string;
-  [key: string]: any;
-};
-
-// Create session storage with a function that will use the actual secret at runtime
-export function getSessionStorage(sessionSecret: string) {
-  return createCookieSessionStorage({
-    cookie: {
-      name: "__session",
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secrets: [sessionSecret],
-      secure: true, // Always use secure in production
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    },
-  });
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_SECRET environment variable is not set");
+  }
+  return secret;
 }
 
-export async function createUserSession(
-  name: string,
-  redirectTo: string,
-  sessionSecret: string
-) {
-  const sessionStorage = getSessionStorage(sessionSecret);
+const sessionStorage = createCookieSessionStorage({
+  cookie: {
+    name: "__session",
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secrets: [getSessionSecret()],
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  },
+});
+
+export async function createUserSession(name: string, redirectTo: string) {
   const session = await sessionStorage.getSession();
   session.set("userName", name);
   session.set("authenticated", true);
@@ -39,27 +32,19 @@ export async function createUserSession(
   });
 }
 
-export async function getUserSession(request: Request, sessionSecret: string) {
-  const sessionStorage = getSessionStorage(sessionSecret);
+export async function getUserSession(request: Request) {
   return sessionStorage.getSession(request.headers.get("Cookie"));
 }
 
-export async function getUserName(
-  request: Request,
-  sessionSecret: string
-): Promise<string | null> {
-  const session = await getUserSession(request, sessionSecret);
+export async function getUserName(request: Request): Promise<string | null> {
+  const session = await getUserSession(request);
   const authenticated = session.get("authenticated");
   const userName = session.get("userName");
   return authenticated && userName ? userName : null;
 }
 
-export async function requireAuth(
-  request: Request,
-  sessionSecret: string,
-  redirectTo: string = "/"
-) {
-  const userName = await getUserName(request, sessionSecret);
+export async function requireAuth(request: Request, redirectTo: string = "/") {
+  const userName = await getUserName(request);
   if (!userName) {
     const searchParams = new URLSearchParams([["next", redirectTo]]);
     throw redirect(`/login?${searchParams}`);
@@ -67,9 +52,8 @@ export async function requireAuth(
   return userName;
 }
 
-export async function logout(request: Request, sessionSecret: string) {
-  const sessionStorage = getSessionStorage(sessionSecret);
-  const session = await getUserSession(request, sessionSecret);
+export async function logout(request: Request) {
+  const session = await getUserSession(request);
   return redirect("/login", {
     headers: {
       "Set-Cookie": await sessionStorage.destroySession(session),
@@ -81,39 +65,8 @@ export function verifyPassword(
   password: string,
   householdPassword: string
 ): boolean {
-  return password === householdPassword;
-}
-
-// Higher-order function to create authenticated loaders
-// Automatically handles auth check and injects userName into loader data
-// NOTE: This must be called INSIDE the loader function, not at module level,
-// to avoid being included in client bundles
-export function createAuthenticatedLoader<T extends Record<string, any>>(
-  loaderFn: (
-    args: LoaderFunctionArgs & { userName: string }
-  ) => Promise<Response> | Response
-) {
-  return async (args: LoaderFunctionArgs) => {
-    const { request, context } = args;
-    const url = new URL(request.url);
-    const userName = await requireAuth(
-      request,
-      context.env.SESSION_SECRET,
-      url.pathname
-    );
-    return loaderFn({ ...args, userName });
-  };
-}
-
-// Alternative: Direct auth helper that can be called inside loaders
-// Use this instead of createAuthenticatedLoader for Remix/PartyMix compatibility
-export async function authenticateLoader(args: LoaderFunctionArgs) {
-  const { request } = args;
-  const url = new URL(request.url);
-  const userName = await requireAuth(
-    request,
-    args.context.env.SESSION_SECRET,
-    url.pathname
-  );
-  return userName;
+  // Constant-time comparison (hash first to normalize length).
+  const a = createHash("sha256").update(password).digest();
+  const b = createHash("sha256").update(householdPassword).digest();
+  return timingSafeEqual(a, b);
 }

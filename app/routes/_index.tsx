@@ -1,6 +1,7 @@
-import type { LoaderFunction, MetaFunction, LinksFunction } from "partymix";
+import type { LoaderFunction, MetaFunction, LinksFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, Form } from "@remix-run/react";
-import { authenticateLoader } from "~/utils/session.server";
+import { requireAuth } from "~/utils/session.server";
 import { useEffect, useState } from "react";
 
 export const links: LinksFunction = () => [
@@ -14,9 +15,9 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export const loader: LoaderFunction = async (args) => {
-  const userName = await authenticateLoader(args);
-  return Response.json({ userName });
+export const loader: LoaderFunction = async ({ request }) => {
+  const userName = await requireAuth(request);
+  return json({ userName });
 };
 
 type NetworkStatus = "detecting" | "lan" | "tailscale" | "external";
@@ -56,16 +57,6 @@ const MEDIA_SERVICES = [
     url: "https://files.schiller.town",
     icon: "📁",
     requiresNetwork: false,
-  },
-];
-
-const FAMILY_SERVICES = [
-  { name: "Docs", desc: "Shared documents", url: "/docs", icon: "📄" },
-  {
-    name: "Potty Chart",
-    desc: "Everett's potty progress",
-    url: "/star-chart",
-    icon: "⭐",
   },
 ];
 
@@ -254,11 +245,6 @@ export default function Home() {
         </div>
       </header>
 
-      <ServiceSection
-        title="Family"
-        services={FAMILY_SERVICES}
-        network={network}
-      />
       <ServiceSection
         title="Media"
         services={MEDIA_SERVICES}
