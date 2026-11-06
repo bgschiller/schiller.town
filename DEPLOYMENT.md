@@ -2,6 +2,15 @@
 
 The app no longer runs on Cloudflare Workers. It is a plain Remix 2 app served by `remix-serve` (Node), packaged as a Docker container, and exposed publicly through a Cloudflare Tunnel. Admin tools (Radarr, Sonarr, pi-hole, …) stay LAN/Tailscale-only — they are never exposed through the tunnel.
 
+## Current state (as built 2026-11-06)
+
+- Live at `https://schiller.town`, served from this home server (`raichu`).
+- Cloudflare Tunnel id `2b91faeb-fb45-4e17-9d0a-319705f0fb49` — **remotely managed** (hostname configured in the Zero Trust dashboard).
+- DNS: `schiller.town` CNAME → `2b91faeb-fb45-4e17-9d0a-319705f0fb49.cfargotunnel.com` (proxied). The old Workers custom domain (AAAA `100::`) is removed.
+- `.env` (chmod 600, gitignored) holds `SESSION_SECRET`, `HOUSEHOLD_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`.
+- Containers: `schiller` (remix-serve, host port 3000) + `schiller-tunnel` (cloudflared) on bridge network `schiller-network`.
+- Deploy: `docker compose up -d --build`. Logs: `docker compose logs -f`.
+
 ## Prerequisites
 
 - Docker + Docker Compose on the home server.
@@ -37,6 +46,8 @@ CLOUDFLARE_TUNNEL_TOKEN=<token>
 2. Copy the tunnel token into `CLOUDFLARE_TUNNEL_TOKEN` in `.env`.
 3. Add a public hostname: `schiller.town` → service `http://schiller:3000` (the compose service name on the shared docker network).
 4. Cloudflare creates/updates the DNS record automatically.
+
+> **Gotcha — tunnel token ≠ config:** a tunnel token only authorizes the *connection*, not the config. This tunnel is *remotely managed*, so the public-hostname mapping lives in Cloudflare and must be set in the dashboard (or via API with **Cloudflare Tunnel → Edit**). A local `config.yml` ingress is **ignored** for remotely-managed tunnels — the symptom is cloudflared connects fine but every request 404s because no ingress rule matches. There is no local-only way to route a remotely-managed tunnel.
 
 ## 4. Start it
 
