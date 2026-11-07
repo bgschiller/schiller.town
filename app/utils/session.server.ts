@@ -1,5 +1,5 @@
 import { createCookieSessionStorage, redirect } from "@remix-run/node";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -68,5 +68,40 @@ export function verifyPassword(
   // Constant-time comparison (hash first to normalize length).
   const a = createHash("sha256").update(password).digest();
   const b = createHash("sha256").update(householdPassword).digest();
+  return timingSafeEqual(a, b);
+}
+
+export async function ensureCsrfToken(
+  request: Request
+): Promise<{ token: string; headers?: Headers }> {
+  const session = await getUserSession(request);
+  let token = session.get("csrf");
+  if (typeof token !== "string" || token.length === 0) {
+    token = randomBytes(32).toString("base64url");
+    session.set("csrf", token);
+    return {
+      token,
+      headers: new Headers({
+        "Set-Cookie": await sessionStorage.commitSession(session),
+      }),
+    };
+  }
+  return { token };
+}
+
+export async function verifyCsrfToken(
+  request: Request,
+  submitted: unknown
+): Promise<boolean> {
+  if (typeof submitted !== "string" || submitted.length === 0) {
+    return false;
+  }
+  const session = await getUserSession(request);
+  const expected = session.get("csrf");
+  if (typeof expected !== "string") {
+    return false;
+  }
+  const a = createHash("sha256").update(expected).digest();
+  const b = createHash("sha256").update(submitted).digest();
   return timingSafeEqual(a, b);
 }

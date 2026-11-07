@@ -7,7 +7,7 @@ The app no longer runs on Cloudflare Workers. It is a plain Remix 2 app served b
 - Live at `https://schiller.town`, served from this home server (`raichu`).
 - Cloudflare Tunnel id `2b91faeb-fb45-4e17-9d0a-319705f0fb49` — **remotely managed** (hostname configured in the Zero Trust dashboard).
 - DNS: `schiller.town` CNAME → `2b91faeb-fb45-4e17-9d0a-319705f0fb49.cfargotunnel.com` (proxied). The old Workers custom domain (AAAA `100::`) is removed.
-- `.env` (chmod 600, gitignored) holds `SESSION_SECRET`, `HOUSEHOLD_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`.
+- `.env` (chmod 600, gitignored) holds `SESSION_SECRET`, `HOUSEHOLD_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`, `PIHOLE_APP_PASSWORD`, `PIHOLE_URL`.
 - Containers: `schiller` (remix-serve, host port 3000) + `schiller-tunnel` (cloudflared) on bridge network `schiller-network`.
 - Deploy: `docker compose up -d --build`. Logs: `docker compose logs -f`.
 
@@ -29,6 +29,10 @@ HOUSEHOLD_PASSWORD=<password>
 
 # From the Cloudflare tunnel created in step 3
 CLOUDFLARE_TUNNEL_TOKEN=<token>
+
+# Pi-hole (v6) app password — create a scoped one at Settings → API → App passwords
+PIHOLE_APP_PASSWORD=<app password>
+PIHOLE_URL=http://192.168.0.26
 ```
 
 ## 2. Remove the old Cloudflare Workers route
@@ -80,4 +84,4 @@ then `docker restart caddy`. (Only useful if you have a LAN/Tailscale DNS name f
 - Access requires a signed session cookie (`httpOnly`, `SameSite=Lax`, `Secure` in production) issued after the shared-password check.
 - `SESSION_SECRET` must be random and secret; rotating it logs everyone out.
 - The old `.envrc` (a Wrangler Cloudflare API token) has been removed. It was local-only (not committed), but consider rotating that token in Cloudflare to fully retire it.
-- For future state-changing server actions (e.g. "pause pi-hole"), add CSRF protection — Remix does not auto-protect form actions.
+- The "pause pi-hole" action is CSRF-protected (signed token stored in the session) and validates durations against a whitelist (`30s`/`5m`/`15m`/`30m`/`1h`). The pi-hole app password is used server-side only; prefer a scoped app password over the admin login.

@@ -146,3 +146,77 @@ details.service-group[open] > summary.group-heading::after {
     max-width: none;
   }
 }
+
+.pihole-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.pihole-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.375rem;
+}
+
+.pihole-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pihole-status {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.pihole-card--on .pihole-status {
+  color: #059669;
+  font-weight: 600;
+}
+
+.pihole-card--paused .pihole-status {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.pihole-card--off .pihole-status {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.pihole-card--unknown .pihole-status {
+  color: #9ca3af;
+}
+
+.pihole-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pihole-actions button {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pihole-actions button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.pihole-error {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}

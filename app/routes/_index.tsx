@@ -1,7 +1,8 @@
 import type { LoaderFunction, MetaFunction, LinksFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, Form } from "@remix-run/react";
-import { requireAuth } from "~/utils/session.server";
+import { useLoaderData, useFetcher, Form } from "@remix-run/react";
+import { requireAuth, ensureCsrfToken } from "~/utils/session.server";
+import { getBlockingStatus } from "~/utils/pihole.server";
 import { useEffect, useState } from "react";
 
 export const links: LinksFunction = () => [
@@ -15,9 +16,28 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+type BlockingStatus = { blocking: boolean; timerSeconds: number | null };
+
 export const loader: LoaderFunction = async ({ request }) => {
   const userName = await requireAuth(request);
-  return json({ userName });
+  const csrf = await ensureCsrfToken(request);
+
+  let piholeStatus: BlockingStatus | null = null;
+  let piholeError: string | null = null;
+  try {
+    piholeStatus = await getBlockingStatus();
+  } catch (e) {
+    piholeError = e instanceof Error ? e.message : "pi-hole unavailable";
+  }
+
+  return json(
+    {
+      userName,
+      csrf: csrf.token,
+      pihole: { status: piholeStatus, error: piholeError },
+    },
+    csrf.headers ? { headers: csrf.headers } : undefined
+  );
 };
 
 type NetworkStatus = "detecting" | "lan" | "tailscale" | "external";
@@ -203,9 +223,98 @@ function NetworkBanner({ network }: { network: NetworkStatus }) {
   );
 }
 
+function formatRemaining(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
+function PiHoleCard({
+  status,
+  error,
+  csrf,
+}: {
+  status: BlockingStatus | null;
+  error: string | null;
+  csrf: string;
+}) {
+  const fetcher = useFetcher();
+  const current =
+    (fetcher.data as { status?: BlockingStatus } | undefined)?.status ?? status;
+
+  let label: string;
+  let tone: "on" | "off" | "paused" | "unknown";
+  if (!current) {
+    label = error ? "Unreachable" : "Checking…";
+    tone = "unknown";
+  } else if (current.blocking) {
+    label = "Blocking enabled";
+    tone = "on";
+  } else if (current.timerSeconds != null) {
+    label = `Paused — resumes in ${formatRemaining(current.timerSeconds)}`;
+    tone = "paused";
+  } else {
+    label = "Blocking disabled";
+    tone = "off";
+  }
+
+  const fetcherData = fetcher.data as
+    | { ok?: boolean; error?: string }
+    | undefined;
+
+  return (
+    <div className={`pihole-card pihole-card--${tone}`}>
+      <div className="pihole-heading">
+        <span className="service-icon">🛡️</span>
+        <span className="pihole-name">Pi-hole</span>
+      </div>
+      <div className="pihole-status">{label}</div>
+      <fetcher.Form
+        method="post"
+        action="/api/pi-hole"
+        className="pihole-actions"
+      >
+        <input type="hidden" name="csrf" value={csrf} />
+        {current?.blocking ? (
+          <>
+            <button type="submit" name="duration" value="30s">
+              30s
+            </button>
+            <button type="submit" name="duration" value="5m">
+              5m
+            </button>
+            <button type="submit" name="duration" value="15m">
+              15m
+            </button>
+            <button type="submit" name="duration" value="30m">
+              30m
+            </button>
+            <button type="submit" name="duration" value="1h">
+              1h
+            </button>
+          </>
+        ) : (
+          <button type="submit" name="intent" value="enable">
+            Resume blocking
+          </button>
+        )}
+      </fetcher.Form>
+      {fetcherData && fetcherData.ok === false && (
+        <div className="pihole-error">{fetcherData.error}</div>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
-  const data = useLoaderData<typeof loader>();
-  const { userName } = data as unknown as { userName: string };
+  const data = useLoaderData<typeof loader>() as unknown as {
+    userName: string;
+    csrf: string;
+    pihole: { status: BlockingStatus | null; error: string | null };
+  };
+  const { userName, csrf, pihole } = data;
   const [network, setNetwork] = useState<NetworkStatus>("detecting");
 
   useEffect(() => {
@@ -250,6 +359,11 @@ export default function Home() {
         services={MEDIA_SERVICES}
         network={network}
       />
+
+      <div className="service-group">
+        <div className="group-heading">Network</div>
+        <PiHoleCard status={pihole.status} error={pihole.error} csrf={csrf} />
+      </div>
 
       <details className="service-group admin-group">
         <summary className="group-heading">Admin Tools</summary>
