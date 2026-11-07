@@ -198,6 +198,13 @@ details.service-group[open] > summary.group-heading::after {
   gap: 0.5rem;
 }
 
+.pihole-pause-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
 .pihole-actions button {
   font-size: 0.8125rem;
   font-weight: 500;

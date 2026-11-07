@@ -244,16 +244,44 @@ function PiHoleCard({
   const current =
     (fetcher.data as { status?: BlockingStatus } | undefined)?.status ?? status;
 
+  // Countdown: once we know the pi-hole pause timer, derive an absolute
+  // "resume at" time and tick a local clock down to it — no polling, just
+  // trusting the clocks to be close enough.
+  const [resumeAt, setResumeAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (current && !current.blocking && current.timerSeconds != null) {
+      setResumeAt(Date.now() + current.timerSeconds * 1000);
+    } else {
+      setResumeAt(null);
+    }
+  }, [current]);
+
+  useEffect(() => {
+    if (resumeAt == null) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [resumeAt]);
+
+  const remaining =
+    resumeAt != null ? Math.max(0, (resumeAt - now) / 1000) : null;
+  const expired = remaining === 0;
+  const showBlocking = current?.blocking === true || expired;
+
   let label: string;
   let tone: "on" | "off" | "paused" | "unknown";
   if (!current) {
     label = error ? "Unreachable" : "Checking…";
     tone = "unknown";
-  } else if (current.blocking) {
+  } else if (showBlocking) {
     label = "Blocking enabled";
     tone = "on";
-  } else if (current.timerSeconds != null) {
-    label = `Paused — resumes in ${formatRemaining(current.timerSeconds)}`;
+  } else if (current.blocking === false && current.timerSeconds != null) {
+    label = `Paused — resumes in ${formatRemaining(
+      remaining ?? current.timerSeconds
+    )}`;
     tone = "paused";
   } else {
     label = "Blocking disabled";
@@ -277,8 +305,9 @@ function PiHoleCard({
         className="pihole-actions"
       >
         <input type="hidden" name="csrf" value={csrf} />
-        {current?.blocking ? (
+        {showBlocking ? (
           <>
+            <span className="pihole-pause-label">Pause for</span>
             <button type="submit" name="duration" value="30s">
               30s
             </button>
